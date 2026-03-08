@@ -1,0 +1,279 @@
+================================================================================
+              FinWise Projesini Çalıştırma — Detaylı Adımlar
+                         Kullanılacak komutlar
+================================================================================
+
+
+■ GEREKSİNİMLER
+---------------
+• Bilgisayarda Node.js kurulu olmalı (sürüm 18 veya üzeri).
+  Kontrol: node --version
+
+• PostgreSQL kurulu olmalı ve çalışıyor olmalı (veritabanı sunucusu).
+  İndirme: https://www.postgresql.org/download/windows/
+
+• Komutları çalıştırmak için Terminal (PowerShell veya CMD) veya
+  VS Code / Cursor içindeki terminal kullanılır.
+
+
+■ ADIM 1 — PostgreSQL’de veritabanı oluşturma
+----------------------------------------------
+
+PostgreSQL kurulduktan sonra "finwise" adında bir veritabanı oluşturmanız
+gerekir. Aşağıdaki yollardan birini kullanabilirsiniz.
+
+Yol A — pgAdmin ile (grafik arayüz):
+  1. pgAdmin’i açın.
+  2. Sunucuya bağlanın (örn. Local / PostgreSQL).
+  3. Databases üzerine sağ tıklayıp Create → Database.
+  4. Database adı: finwise
+  5. Save.
+
+Yol B — Komut satırı (psql veya SQL Shell):
+  • SQL Shell (psql) veya "psql" komutunu kullanabiliyorsanız:
+
+    psql -U postgres
+
+  • Açılan yerde şifrenizi girin, sonra:
+
+    CREATE DATABASE finwise;
+
+  • Çıkmak için: \q
+
+Bu adımdan sonra "finwise" adında boş bir veritabanı hazır olmalı.
+
+
+■ ADIM 2 — Backend klasörüne geçme
+----------------------------------
+
+Terminalde projenin kök klasöründen backend’e geçin.
+
+Örnek (proje masaüstündeyse):
+
+  cd Desktop\finwise\backend
+
+Veya tam yol:
+
+  cd c:\Users\Sena Ceylan\Desktop\finwise\backend
+
+
+■ ADIM 3 — Backend bağımlılıklarını yükleme
+-------------------------------------------
+
+Aynı terminalde (backend klasöründeyken):
+
+  npm install
+
+Bu komut package.json’daki tüm paketleri indirir. İlk seferde birkaç dakika
+sürebilir. Hata almadan “added … packages” benzeri bir mesaj görmelisiniz.
+
+
+■ ADIM 4 — Ortam dosyasını oluşturma (.env)
+-------------------------------------------
+
+Backend’in veritabanına ve güvenlik ayarlarına erişmesi için .env dosyası
+gerekir.
+
+  copy .env.example .env
+
+(Windows CMD’de "copy". PowerShell’de aynı komut veya: Copy-Item .env.example .env)
+
+Ardından .env dosyasını bir metin editörüyle açıp şu satırları kendi
+bilgilerinize göre düzenleyin:
+
+  DATABASE_URL="postgresql://postgres:SIFRENIZ@localhost:5432/finwise?schema=public"
+  JWT_SECRET="buraya-güçlü-rastgele-bir-metin-yazin"
+  JWT_EXPIRES_IN="7d"
+  PORT=5000
+
+• postgres    → PostgreSQL kullanıcı adınız (genelde postgres).
+• SIFRENIZ   → PostgreSQL kurulumunda belirlediğiniz şifre.
+• finwise    → Veritabanı adı (Adım 1’de oluşturduğunuz).
+• 5432       → PostgreSQL’in dinlediği port (varsayılan).
+
+Kaydedip kapatın.
+
+
+■ ADIM 5 — Veritabanı şemasını oluşturma (Prisma)
+-------------------------------------------------
+
+Backend klasöründeyken sırayla:
+
+  1) Prisma Client’ı üretmek:
+
+     npm run db:generate
+
+  2) Tabloları veritabanında oluşturmak (ilk migration):
+
+     npm run db:migrate
+
+     • İlk seferde “Enter a name for the new migration” yazarsa örneğin:
+       init
+       yazıp Enter’a basın.
+
+  3) Örnek kullanıcı ve harcama eklemek (isteğe bağlı ama önerilir):
+
+     npm run db:seed
+
+     Bu işlem demo kullanıcıyı oluşturur:
+     E-posta: demo@finwise.local
+     Şifre:   demo1234
+
+
+■ ADIM 6 — Backend’i (sunucuyu) başlatma
+-----------------------------------------
+
+Backend klasöründeyken:
+
+  npm start
+
+Şuna benzer bir çıktı görmelisiniz:
+
+  FinWise API http://localhost:5000
+
+Bu pencereyi açık bırakın. Sunucu çalışırken backend hazırdır.
+
+• Durdurmak için: Ctrl + C
+
+
+■ ADIM 7 — Frontend (web arayüzü) için yeni terminal
+----------------------------------------------------
+
+Backend’i çalıştırdığınız terminali kapatmayın. Yeni bir terminal açın
+(veya Cursor/VS Code’da + ile yeni terminal sekmesi).
+
+Önce proje köküne, sonra web klasörüne geçin:
+
+  cd c:\Users\Sena Ceylan\Desktop\finwise\web
+
+veya
+
+  cd Desktop\finwise\web
+
+
+■ ADIM 8 — Frontend bağımlılıklarını yükleme
+--------------------------------------------
+
+Web klasöründeyken:
+
+  npm install
+
+
+■ ADIM 9 — Frontend’i başlatma
+------------------------------
+
+Aynı (web) klasöründeyken:
+
+  npm run dev
+
+Çıktıda genelde şöyle bir adres yazar:
+
+  Local:   http://localhost:5173/
+
+Tarayıcıda bu adresi açın (örn. http://localhost:5173).
+
+
+■ ADIM 10 — Uygulamayı kullanma
+-------------------------------
+
+• İlk kullanımda “Giriş Yap” veya “Kayıt Ol” görünür.
+• Seed çalıştırdıysanız:
+  E-posta: demo@finwise.local
+  Şifre:   demo1234
+  ile giriş yapabilirsiniz.
+• Yeni kullanıcı için “Kayıt Ol” ile ad, e-posta ve şifre (en az 6 karakter)
+  girip kayıt olun; ardından aynı bilgilerle giriş yapın.
+• Girişten sonra harcama ekleyebilir, listeyi görebilir ve kayıt silebilirsiniz.
+
+
+================================================================================
+                    ÖZET — Sırayla çalıştırılacak komutlar
+================================================================================
+
+İLK KURULUM (bir kez):
+
+  1. PostgreSQL’de "finwise" veritabanını oluşturun (pgAdmin veya psql ile).
+
+  2. Backend:
+     cd c:\Users\Sena Ceylan\Desktop\finwise\backend
+     npm install
+     copy .env.example .env
+     ( .env içinde DATABASE_URL ve JWT_SECRET’ı düzenleyin )
+     npm run db:generate
+     npm run db:migrate
+     npm run db:seed
+     npm start
+
+  3. Yeni terminalde Frontend:
+     cd c:\Users\Sena Ceylan\Desktop\finwise\web
+     npm install
+     npm run dev
+
+  4. Tarayıcıda http://localhost:5173 açın.
+
+
+HER SEFERINDE ÇALIŞTIRMA:
+
+  • 1. Terminal (backend):
+    cd c:\Users\Sena Ceylan\Desktop\finwise\backend
+    npm start
+
+  • 2. Terminal (frontend):
+    cd c:\Users\Sena Ceylan\Desktop\finwise\web
+    npm run dev
+
+  • Tarayıcı: http://localhost:5173
+
+
+================================================================================
+                    Ek ve yararlı komutlar
+================================================================================
+
+Backend klasöründeyken:
+
+  npm run dev
+  → Sunucuyu “izleme” modunda başlatır; dosya değişince yeniden başlar.
+    Geliştirme yaparken kullanılabilir.
+
+  npm run db:studio
+  → Prisma Studio açar. Tarayıcıda veritabanındaki users ve expenses
+    tablolarını görüntüleyip inceleyebilirsiniz.
+
+  npm run db:seed
+  → Örnek kullanıcı ve harcamaları tekrar eklemek için (zaten varsa
+    kullanıcı güncellenir, harcama sayısı 0 ise iki örnek eklenir).
+
+Web klasöründeyken:
+
+  npm run build
+  → Projeyi yayına hazır (production) dosyalar halinde derler.
+    Çıktı genelde web/dist klasöründe olur.
+
+  npm run preview
+  → Build alındıktan sonra bu derlenmiş sürümü yerel olarak denemek için
+    kullanılır.
+
+
+================================================================================
+                    Sık karşılaşılan durumlar
+================================================================================
+
+• "localhost:5000’e bağlanamıyorum" / "Connection refused"
+  → Backend çalışmıyor demektir. Backend klasöründe "npm start" ile
+    sunucuyu başlatın.
+
+• "Şifre hatalı" veya veritabanı bağlantı hatası
+  → .env içindeki DATABASE_URL’i kontrol edin. Kullanıcı adı (postgres),
+    şifre ve veritabanı adı (finwise) doğru olmalı.
+
+• "npm: komut bulunamadı" / "node: komut bulunamadı"
+  → Node.js kurulu değil veya terminal yeniden açılmadı. Node.js’i kurup
+    terminali kapatıp açın.
+
+• Sayfa açılıyor ama giriş yapınca liste boş
+  → Backend’in çalıştığından ve .env’in doğru olduğundan emin olun.
+    Tarayıcıda F12 → Console’da hata var mı bakın.
+
+================================================================================
+                              Dosya sonu
+================================================================================

@@ -1,0 +1,109 @@
+================================================================================
+                    FinWise — Yapılanlar ve Sonraki Adımlar
+                    (Teknik detaylardan uzak özet)
+================================================================================
+
+
+■ NEDİR?
+--------
+FinWise, kişisel harcamalarınızı kaydedip listeleyebileceğiniz bir uygulamadır.
+Her kullanıcı sadece kendi harcamalarını görür ve yönetir. Giriş yapmadan
+işlem yapılamaz; böylece veriler kişiye özel kalır.
+
+
+■ NE YAPILDI? (Özet)
+--------------------
+
+1. Verilerin saklanması
+   • Eski yapıda veriler sadece bellekte tutuluyordu; sunucu kapanınca
+     her şey siliniyordu.
+   • Artık tüm veriler PostgreSQL adlı bir veritabanında saklanıyor.
+     Sunucu kapansa bile kayıtlar duruyor.
+
+2. Kullanıcı hesapları
+   • Yeni kullanıcılar kayıt olabiliyor (ad, e-posta, şifre).
+   • Mevcut kullanıcılar e-posta ve şifre ile giriş yapabiliyor.
+   • Şifreler güvenli biçimde saklanıyor; sistem girişte oturum açıyor
+     ve bu oturumla işlem yapılıyor.
+
+3. Harcamaların kişiye özel olması
+   • Her harcama kaydı, onu ekleyen kullanıcıya bağlı.
+   • Bir kullanıcı yalnızca kendi eklediği harcamaları görebilir,
+     güncelleyebilir veya silebilir. Başkasının kaydına erişim engellendi.
+
+4. Güvenlik düzenlemeleri
+   • Giriş ve kayıt sayfalarına sık istek atılması sınırlandı.
+   • Girdiler (tutar, kategori, tarih, açıklama) kontrol ediliyor;
+     hatalı veya aşırı uzun veri kabul edilmiyor.
+   • Hata mesajları kullanıcıya anlaşılır şekilde gösteriliyor; sistem
+     detayları dışarı sızdırmıyor.
+
+5. Sunucu tarafının düzeni
+   • Sunucu kodu modüllere ayrıldı: giriş/kayıt, harcamalar, güvenlik,
+     hata yönetimi gibi bölümler ayrı dosyalarda. Bakım ve geliştirme
+     kolaylaştı.
+
+6. Arayüz (web)
+   • Giriş ve kayıt ekranları eklendi.
+   • Giriş yapan kullanıcı adını görüyor ve çıkış yapabiliyor.
+   • Harcama ekleme formu ve harcama listesi aynı sayfada; listeden
+     tek tek silme yapılabiliyor.
+   • Koyu tema korundu; formlar ve liste okunaklı şekilde düzenlendi.
+
+
+■ KULLANICI AÇISINDAN NE DEĞİŞTİ?
+---------------------------------
+• Önce: Sayfa açılınca herkes aynı harcama listesini görüyordu; veri
+  kalıcı değildi.
+• Şimdi: Önce giriş yapılıyor (veya kayıt olunuyor). Sonra sadece o
+  kullanıcının harcamaları listeleniyor; veriler veritabanında kalıcı.
+  Kullanıcı kendi kayıtlarını silebiliyor.
+
+
+■ SONRAKİ AŞAMALAR (Yapılabilecekler)
+-------------------------------------
+
+A. Kullanım ve raporlama
+   • Harcamaları tarih aralığına göre filtreleme (örn. bu ay, bu yıl).
+   • Kategoriye göre filtreleme (sadece gıda, sadece ulaşım vb.).
+   • Aylık veya yıllık özet: toplam harcama, kategori dağılımı.
+   • İsteğe bağlı: basit grafikler (çubuk veya pasta grafik).
+
+B. Harcama düzenleme
+   • Listede bir harcamaya tıklayıp tutar, kategori, tarih veya
+     açıklamayı değiştirme (şu an sadece silme var).
+
+C. Şifre ve hesap
+   • “Şifremi unuttum” ile e-posta üzerinden şifre sıfırlama.
+   • Profil sayfası: ad veya e-posta güncelleme, şifre değiştirme.
+
+D. Çoklu para birimi (ileride)
+   • Harcamaları farklı para birimlerinde tutma (TL, USD, EUR vb.)
+     ve dönüşüm / özet gösterme.
+
+E. Mobil ve yedekleme
+   • Mobil uygulama veya mobil uyumlu web arayüzü.
+   • Kullanıcının kendi verilerini dışa aktarması (Excel/CSV).
+
+F. Bildirimler ve hatırlatmalar (ileride)
+   • Belirli kategoride aylık limit aşımında uyarı.
+   • Tekrarlayan harcamalar için hatırlatma (fatura tarihi vb.).
+
+G. Yönetim ve yayına alma
+   • Sunucuyu gerçek bir sunucuya taşıma (Canlıya alma).
+   • Alan adı ve HTTPS (SSL) kullanımı.
+   • Veritabanının düzenli yedeğinin alınması.
+
+
+■ ÖZET
+------
+Yapılanlar: Veriler kalıcı hale getirildi, kullanıcı girişi ve kişiye
+özel harcama listesi eklendi, güvenlik ve kod düzeni iyileştirildi.
+
+Sonraki adımlar: Filtreleme, raporlama, harcama düzenleme, şifre sıfırlama,
+profil sayfası, isteğe bağlı olarak çoklu para birimi, dışa aktarma ve
+canlıya alma gibi aşamalarla uygulama genişletilebilir.
+
+================================================================================
+                              Dosya sonu
+================================================================================

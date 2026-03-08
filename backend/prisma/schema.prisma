@@ -1,0 +1,51 @@
+// FinWise - PostgreSQL + Prisma
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ExpenseCategory {
+  GIDA
+  ULASIM
+  FATURA
+  EGLENCE
+  DIGER
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(USER)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  expenses     Expense[]
+
+  @@map("users")
+}
+
+model Expense {
+  id          String         @id @default(cuid())
+  amount      Decimal        @db.Decimal(12, 2)
+  category    ExpenseCategory
+  date        DateTime       @db.Date
+  description String?       @db.VarChar(500)
+  userId      String         @map("user_id")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("expenses")
+}
