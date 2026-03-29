@@ -1,6 +1,16 @@
 const { prisma } = require('../utils/prisma');
 const { toEnum, toLabel } = require('../utils/categoryMap');
 const { validateCreateExpense, validateUpdateExpense } = require('../validators/expenseValidator');
+const { assertCardOwnedByUser } = require('../utils/cardAccess');
+const { normalizePaymentSourceAndCard } = require('../utils/paymentSourceNormalize');
+
+function cardSummary(card) {
+  if (!card) return null;
+  return {
+    id: card.id,
+    label: `${card.bankName} ${card.cardName} ••••${card.last4Digits}`,
+  };
+}
 
 function serializeExpense(expense) {
   return {
@@ -10,6 +20,9 @@ function serializeExpense(expense) {
     date: expense.date.toISOString().slice(0, 10),
     description: expense.description || '',
     userId: expense.userId,
+    paymentSource: expense.paymentSource,
+    cardId: expense.cardId || null,
+    card: cardSummary(expense.card),
     createdAt: expense.createdAt.toISOString(),
     updatedAt: expense.updatedAt.toISOString(),
   };
@@ -20,6 +33,7 @@ async function list(req, res, next) {
     const expenses = await prisma.expense.findMany({
       where: { userId: req.userId },
       orderBy: { date: 'desc' },
+      include: { card: true },
     });
     return res.json(expenses.map(serializeExpense));
   } catch (e) {
@@ -32,6 +46,7 @@ async function getById(req, res, next) {
     const { id } = req.params;
     const expense = await prisma.expense.findFirst({
       where: { id, userId: req.userId },
+      include: { card: true },
     });
     if (!expense) {
       return res.status(404).json({ success: false, error: 'Harcama bulunamadı.' });
@@ -55,6 +70,15 @@ async function create(req, res, next) {
   }
 
   try {
+    const { paymentSource, cardId } = normalizePaymentSourceAndCard(
+      parsed.data.paymentSource,
+      parsed.data.cardId,
+      'cash'
+    );
+    if (cardId) {
+      await assertCardOwnedByUser(cardId, req.userId);
+    }
+
     const expense = await prisma.expense.create({
       data: {
         amount,
@@ -62,10 +86,16 @@ async function create(req, res, next) {
         date: new Date(date),
         description: description || null,
         userId: req.userId,
+        paymentSource,
+        cardId,
       },
+      include: { card: true },
     });
     return res.status(201).json(serializeExpense(expense));
   } catch (e) {
+    if (e.statusCode) {
+      return res.status(e.statusCode).json({ success: false, error: e.message });
+    }
     next(e);
   }
 }
@@ -93,12 +123,32 @@ async function update(req, res, next) {
   if (parsed.data.description !== undefined) data.description = parsed.data.description || null;
 
   try {
+    const nextSource = parsed.data.paymentSource ?? existing.paymentSource;
+    const nextCardId =
+      parsed.data.cardId !== undefined ? parsed.data.cardId : existing.cardId;
+    const { paymentSource, cardId } = normalizePaymentSourceAndCard(
+      nextSource,
+      nextCardId === null ? null : nextCardId,
+      'cash'
+    );
+    if (parsed.data.paymentSource !== undefined || parsed.data.cardId !== undefined) {
+      data.paymentSource = paymentSource;
+      data.cardId = cardId;
+    }
+    if (cardId) {
+      await assertCardOwnedByUser(cardId, req.userId);
+    }
+
     const expense = await prisma.expense.update({
       where: { id },
       data,
+      include: { card: true },
     });
     return res.json(serializeExpense(expense));
   } catch (e) {
+    if (e.statusCode) {
+      return res.status(e.statusCode).json({ success: false, error: e.message });
+    }
     next(e);
   }
 }

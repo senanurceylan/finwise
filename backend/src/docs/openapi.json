@@ -1,0 +1,963 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "FinWise API",
+    "version": "2.0",
+    "description": "FinWise backend: kimlik doğrulama (`/auth`), harcamalar (`/expenses`), düzenli ödemeler (`/regular-payments`). Korumalı endpointler için `Authorization: Bearer <JWT>` kullanın."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Yerel geliştirme"
+    }
+  ],
+  "tags": [
+    { "name": "meta", "description": "API kökü" },
+    { "name": "auth", "description": "Kayıt, giriş, oturum bilgisi" },
+    { "name": "expenses", "description": "Tek seferlik harcamalar" },
+    { "name": "regular-payments", "description": "Düzenli ödemeler (`regular_payments` tablosu)" },
+    { "name": "market", "description": "Canlı piyasa verileri (cache ile)" },
+    { "name": "investments", "description": "Kullanıcının yatırım portföy kayıtları" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "`POST /auth/login` veya `POST /auth/register` yanıtındaki `token` değerini kullanın."
+      }
+    },
+    "schemas": {
+      "ErrorBody": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string", "example": "Geçersiz veri." },
+          "details": { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "clx123..." },
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "role": { "type": "string", "enum": ["USER", "ADMIN"], "example": "USER" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AuthRegisterBody": {
+        "type": "object",
+        "required": ["name", "email", "password"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 100, "example": "Ayşe Yılmaz" },
+          "email": { "type": "string", "format": "email", "example": "ayse@example.com" },
+          "password": { "type": "string", "minLength": 6, "maxLength": 100, "example": "secret12" }
+        }
+      },
+      "AuthLoginBody": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "ayse@example.com" },
+          "password": { "type": "string", "example": "secret12" }
+        }
+      },
+      "AuthSuccessRegister": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "user": { "$ref": "#/components/schemas/User" },
+          "token": { "type": "string", "description": "JWT" }
+        },
+        "example": {
+          "success": true,
+          "user": {
+            "id": "clxabc...",
+            "name": "Ayşe Yılmaz",
+            "email": "ayse@example.com",
+            "role": "USER",
+            "createdAt": "2026-03-27T09:00:00.000Z"
+          },
+          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        }
+      },
+      "AuthSuccessLogin": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "user": { "$ref": "#/components/schemas/User" },
+          "token": { "type": "string" }
+        }
+      },
+      "AuthMeResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "user": { "$ref": "#/components/schemas/User" }
+        }
+      },
+      "ExpenseCategory": {
+        "type": "string",
+        "description": "Türkçe kategori etiketi (API ile uyumlu)",
+        "enum": [
+          "Gıda",
+          "Ulaşım",
+          "Fatura",
+          "Eğlence",
+          "Teknolojik Alet",
+          "Diğer"
+        ]
+      },
+      "Expense": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "amount": { "type": "number", "example": 49.99 },
+          "category": { "$ref": "#/components/schemas/ExpenseCategory" },
+          "date": { "type": "string", "format": "date", "example": "2026-03-15" },
+          "description": { "type": "string" },
+          "userId": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateExpenseBody": {
+        "type": "object",
+        "required": ["amount", "category", "date"],
+        "properties": {
+          "amount": { "type": "number", "exclusiveMinimum": 0, "example": 120.5 },
+          "category": { "$ref": "#/components/schemas/ExpenseCategory" },
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "example": "2026-03-20" },
+          "description": { "type": "string", "maxLength": 500, "example": "Market alışverişi" }
+        }
+      },
+      "UpdateExpenseBody": {
+        "type": "object",
+        "description": "Tüm alanlar isteğe bağlı (kısmi güncelleme).",
+        "properties": {
+          "amount": { "type": "number", "exclusiveMinimum": 0 },
+          "category": { "$ref": "#/components/schemas/ExpenseCategory" },
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "description": { "type": "string", "maxLength": 500 }
+        }
+      },
+      "RegularPayment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "user_id": { "type": "string" },
+          "title": { "type": "string" },
+          "category": { "type": "string" },
+          "amount": { "type": "number" },
+          "payment_day": { "type": "integer" },
+          "reminder_days_before": { "type": "integer" },
+          "status": { "type": "string", "enum": ["pending", "paid"] },
+          "last_paid_at": { "type": "string", "format": "date-time", "nullable": true },
+          "next_due_date": { "type": "string", "format": "date", "nullable": true },
+          "next_reminder_at": { "type": "string", "format": "date-time", "nullable": true },
+          "last_reminded_at": { "type": "string", "format": "date-time", "nullable": true },
+          "is_active": { "type": "boolean" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateRegularPaymentBody": {
+        "type": "object",
+        "required": ["user_id", "title", "category", "amount", "payment_day", "reminder_days_before"],
+        "properties": {
+          "user_id": { "type": "string", "description": "JWT içindeki kullanıcı id ile aynı olmalı" },
+          "title": { "type": "string", "maxLength": 120 },
+          "category": { "type": "string", "maxLength": 60 },
+          "amount": { "type": "number", "exclusiveMinimum": 0 },
+          "payment_day": { "type": "integer", "minimum": 1, "maximum": 31 },
+          "reminder_days_before": { "type": "integer", "minimum": 0, "maximum": 31 }
+        }
+      },
+      "MarketPrices": {
+        "type": "object",
+        "properties": {
+          "USDTRY": { "type": "number", "nullable": true, "example": 38.12 },
+          "EURTRY": { "type": "number", "nullable": true, "example": 41.77 },
+          "XAUTRY": { "type": "number", "nullable": true, "example": 3021.45 },
+          "XAGTRY": { "type": "number", "nullable": true, "example": 3047.06 },
+          "BTCTRY": { "type": "number", "nullable": true, "example": 2650000.5 },
+          "ETHTRY": { "type": "number", "nullable": true, "example": 128000.75 },
+          "SOLTRY": { "type": "number", "nullable": true, "example": 3635.33 },
+          "XRPTRY": { "type": "number", "nullable": true, "example": 58.94 },
+          "ADATRY": { "type": "number", "nullable": true, "example": 10.73 }
+        }
+      },
+      "MarketPricesResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "source": {
+            "type": "string",
+            "enum": ["live", "cache", "cache-stale", "empty"],
+            "example": "cache"
+          },
+          "stale": { "type": "boolean", "description": "Kaynak cache-stale ise true olabilir" },
+          "fetchedAt": { "type": "string", "format": "date-time" },
+          "prices": { "$ref": "#/components/schemas/MarketPrices" },
+          "warnings": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Investment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "symbol": {
+            "type": "string",
+            "enum": ["USDTRY", "EURTRY", "XAUTRY", "XAGTRY", "BTCTRY", "ETHTRY", "SOLTRY", "XRPTRY", "ADATRY"]
+          },
+          "assetType": { "type": "string", "enum": ["FOREX", "CRYPTO", "METAL"] },
+          "quantity": { "type": "number", "example": 0.01 },
+          "buyPriceTry": { "type": "number", "example": 2500000 },
+          "note": { "type": "string", "example": "Uzun vade" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateInvestmentBody": {
+        "type": "object",
+        "required": ["symbol", "assetType", "quantity", "buyPriceTry"],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "enum": ["USDTRY", "EURTRY", "XAUTRY", "XAGTRY", "BTCTRY", "ETHTRY", "SOLTRY", "XRPTRY", "ADATRY"]
+          },
+          "assetType": { "type": "string", "enum": ["FOREX", "CRYPTO", "METAL"] },
+          "quantity": { "type": "number", "exclusiveMinimum": 0 },
+          "buyPriceTry": { "type": "number", "minimum": 0 },
+          "note": { "type": "string", "maxLength": 300 }
+        }
+      },
+      "UpdateInvestmentBody": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "enum": ["USDTRY", "EURTRY", "XAUTRY", "XAGTRY", "BTCTRY", "ETHTRY", "SOLTRY", "XRPTRY", "ADATRY"]
+          },
+          "assetType": { "type": "string", "enum": ["FOREX", "CRYPTO", "METAL"] },
+          "quantity": { "type": "number", "exclusiveMinimum": 0 },
+          "buyPriceTry": { "type": "number", "minimum": 0 },
+          "note": { "type": "string", "maxLength": 300 }
+        }
+      },
+      "RootResponse": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string", "example": "FinWise API" },
+          "version": { "type": "string", "example": "2.0" },
+          "docs": { "type": "string", "example": "/api-docs" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "API bilgisi",
+        "description": "Sunucu ve Swagger yolu.",
+        "responses": {
+          "200": {
+            "description": "JSON özet",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RootResponse" },
+                "example": {
+                  "message": "FinWise API",
+                  "version": "2.0",
+                  "docs": "/api-docs"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Kullanıcı kaydı",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuthRegisterBody" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Kayıt başarılı; kullanıcı + JWT döner.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthSuccessRegister" }
+              }
+            }
+          },
+          "400": {
+            "description": "Doğrulama hatası",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" },
+                "example": { "success": false, "error": "Şifre en az 6 karakter olmalı." }
+              }
+            }
+          },
+          "409": {
+            "description": "E-posta zaten kayıtlı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" },
+                "example": { "success": false, "error": "Bu e-posta adresi zaten kullanılıyor." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Giriş",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuthLoginBody" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Giriş başarılı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthSuccessLogin" },
+                "example": {
+                  "success": true,
+                  "user": {
+                    "id": "clxabc...",
+                    "name": "Ayşe Yılmaz",
+                    "email": "ayse@example.com",
+                    "role": "USER",
+                    "createdAt": "2026-01-01T00:00:00.000Z"
+                  },
+                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Doğrulama hatası",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "E-posta veya şifre hatalı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" },
+                "example": { "success": false, "error": "E-posta veya şifre hatalı." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Oturumdaki kullanıcı",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Kullanıcı bilgisi",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthMeResponse" },
+                "example": {
+                  "success": true,
+                  "user": {
+                    "id": "clxabc...",
+                    "name": "Ayşe Yılmaz",
+                    "email": "ayse@example.com",
+                    "role": "USER"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token yok veya geçersiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" },
+                "example": { "success": false, "error": "Yetkilendirme gerekli." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/expenses": {
+      "get": {
+        "tags": ["expenses"],
+        "summary": "Harcamaları listele",
+        "description": "Giriş yapan kullanıcının harcamaları; tarih azalan sırada.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Harcama dizisi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Expense" }
+                },
+                "example": [
+                  {
+                    "id": "clxexp1",
+                    "amount": 99.99,
+                    "category": "Gıda",
+                    "date": "2026-03-10",
+                    "description": "",
+                    "userId": "clxuser",
+                    "createdAt": "2026-03-10T12:00:00.000Z",
+                    "updatedAt": "2026-03-10T12:00:00.000Z"
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["expenses"],
+        "summary": "Harcama ekle",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateExpenseBody" },
+              "example": {
+                "amount": 45.5,
+                "category": "Gıda",
+                "date": "2026-03-27",
+                "description": "Market"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Oluşturuldu",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Expense" }
+              }
+            }
+          },
+          "400": {
+            "description": "Geçersiz gövde veya kategori",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" },
+                "example": { "success": false, "error": "Tutar pozitif olmalı." }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/expenses/{id}": {
+      "get": {
+        "tags": ["expenses"],
+        "summary": "Harcama detayı",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tek kayıt",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Expense" }
+              }
+            }
+          },
+          "404": {
+            "description": "Kullanıcıya ait kayıt yok",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" },
+                "example": { "success": false, "error": "Harcama bulunamadı." }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["expenses"],
+        "summary": "Harcama güncelle",
+        "description": "Gövde alanlarının tamamı isteğe bağlı (kısmi güncelleme).",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateExpenseBody" },
+              "example": { "amount": 55, "description": "Güncellenmiş not" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Güncellenmiş kayıt",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Expense" }
+              }
+            }
+          },
+          "400": {
+            "description": "Geçersiz gövde veya kategori",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Bulunamadı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["expenses"],
+        "summary": "Harcama sil",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Silindi (gövde yok)"
+          },
+          "404": {
+            "description": "Bulunamadı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/regular-payments": {
+      "get": {
+        "tags": ["regular-payments"],
+        "summary": "Düzenli ödemeleri listele",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Kullanıcıya ait kayıtlar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/RegularPayment" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["regular-payments"],
+        "summary": "Düzenli ödeme ekle",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateRegularPaymentBody" },
+              "example": {
+                "user_id": "clxuserId",
+                "title": "Spotify",
+                "category": "Abonelik",
+                "amount": 79.99,
+                "payment_day": 12,
+                "reminder_days_before": 2
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Oluşturuldu",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RegularPayment" }
+              }
+            }
+          },
+          "400": {
+            "description": "Doğrulama hatası",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "`user_id` token ile uyuşmuyor",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" },
+                "example": { "success": false, "error": "Kullanıcı eşleşmiyor." }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/regular-payments/{id}/mark-paid": {
+      "patch": {
+        "tags": ["regular-payments"],
+        "summary": "Ödendi işaretle",
+        "description": "Durumu `paid` yapar; `last_paid_at` ve sonraki vade/hatırlatma alanlarını günceller.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Güncellenmiş kayıt",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RegularPayment" }
+              }
+            }
+          },
+          "404": {
+            "description": "Bulunamadı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" },
+                "example": { "success": false, "error": "Düzenli ödeme bulunamadı." }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/regular-payments/{id}": {
+      "delete": {
+        "tags": ["regular-payments"],
+        "summary": "Düzenli ödemeyi sil",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Silindi"
+          },
+          "404": {
+            "description": "Bulunamadı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/market/prices": {
+      "get": {
+        "tags": ["market"],
+        "summary": "Canlı piyasa fiyatları",
+        "description": "Döviz, altın ve kripto verilerini backend üzerinden döner. Kısa süreli cache kullanır.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Canlı veya cache fiyat verisi",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MarketPricesResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/investments": {
+      "get": {
+        "tags": ["investments"],
+        "summary": "Yatırımları listele",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Kullanıcının yatırım kayıtları",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Investment" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["investments"],
+        "summary": "Yatırım kaydı ekle",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateInvestmentBody" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Oluşturuldu",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Investment" }
+              }
+            }
+          },
+          "400": {
+            "description": "Doğrulama hatası",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkisiz",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/investments/{id}": {
+      "put": {
+        "tags": ["investments"],
+        "summary": "Yatırım kaydını güncelle",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateInvestmentBody" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Güncellenmiş kayıt",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Investment" }
+              }
+            }
+          },
+          "400": {
+            "description": "Doğrulama hatası",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Kayıt bulunamadı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["investments"],
+        "summary": "Yatırım kaydını sil",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Silindi" },
+          "404": {
+            "description": "Kayıt bulunamadı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -9,6 +9,7 @@ const TO_ENUM = {
   Ulaşım: ExpenseCategory.ULASIM,
   Fatura: ExpenseCategory.FATURA,
   Eğlence: ExpenseCategory.EGLENCE,
+  'Teknolojik Alet': ExpenseCategory.TEKNOLOJIK_ALET,
   Diğer: ExpenseCategory.DIGER,
 };
 
@@ -17,6 +18,7 @@ const TO_LABEL = {
   [ExpenseCategory.ULASIM]: 'Ulaşım',
   [ExpenseCategory.FATURA]: 'Fatura',
   [ExpenseCategory.EGLENCE]: 'Eğlence',
+  [ExpenseCategory.TEKNOLOJIK_ALET]: 'Teknolojik Alet',
   [ExpenseCategory.DIGER]: 'Diğer',
 };
 

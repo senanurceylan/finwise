@@ -20,32 +20,137 @@ enum ExpenseCategory {
   ULASIM
   FATURA
   EGLENCE
+  TEKNOLOJIK_ALET
   DIGER
 }
 
+enum RegularPaymentStatus {
+  pending
+  paid
+
+  @@map("regular_payment_status")
+}
+
+/// Ödeme kaynağı (harcama / düzenli ödeme / yatırım)
+enum PaymentSource {
+  cash
+  credit_card
+  debit_card
+  bank_account
+  transfer_eft
+  automatic_payment
+  investment_platform
+  other
+
+  @@map("payment_source")
+}
+
+enum CardType {
+  credit
+  debit
+  commercial
+
+  @@map("card_type")
+}
+
 model User {
-  id           String    @id @default(cuid())
-  name         String
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  role         Role      @default(USER)
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  expenses     Expense[]
+  id              String           @id @default(cuid())
+  name            String
+  email           String           @unique
+  passwordHash    String           @map("password_hash")
+  role            Role             @default(USER)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  expenses        Expense[]
+  regularPayments RegularPayment[]
+  investments     UserInvestment[]
+  paymentCards    PaymentCard[]
 
   @@map("users")
 }
 
-model Expense {
-  id          String         @id @default(cuid())
-  amount      Decimal        @db.Decimal(12, 2)
-  category    ExpenseCategory
-  date        DateTime       @db.Date
-  description String?       @db.VarChar(500)
-  userId      String         @map("user_id")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+model PaymentCard {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  cardName    String   @map("card_name") @db.VarChar(80)
+  bankName    String   @map("bank_name") @db.VarChar(80)
+  cardType    CardType @map("card_type")
+  last4Digits String   @map("last_4_digits") @db.VarChar(4)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses         Expense[]
+  regularPayments  RegularPayment[]
+  investments      UserInvestment[]
+
+  @@index([userId])
+  @@map("payment_cards")
+}
+
+model Expense {
+  id             String          @id @default(cuid())
+  amount         Decimal         @db.Decimal(12, 2)
+  category       ExpenseCategory
+  date           DateTime        @db.Date
+  description    String?         @db.VarChar(500)
+  userId         String          @map("user_id")
+  paymentSource  PaymentSource   @default(cash) @map("payment_source")
+  cardId         String?         @map("card_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card           PaymentCard?    @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([cardId])
   @@map("expenses")
+}
+
+model RegularPayment {
+  id                 String               @id @default(cuid())
+  userId             String               @map("user_id")
+  title              String               @db.VarChar(120)
+  category           String               @db.VarChar(60)
+  amount             Decimal              @db.Decimal(12, 2)
+  paymentDay         Int                  @map("payment_day")
+  reminderDaysBefore Int                  @default(1) @map("reminder_days_before")
+  status             RegularPaymentStatus @default(pending)
+  lastPaidAt         DateTime?            @map("last_paid_at")
+  nextDueDate        DateTime?            @map("next_due_date") @db.Date
+  nextReminderAt     DateTime?            @map("next_reminder_at")
+  lastRemindedAt     DateTime?            @map("last_reminded_at")
+  isActive           Boolean              @default(true) @map("is_active")
+  paymentSource      PaymentSource        @default(automatic_payment) @map("payment_source")
+  cardId             String?              @map("card_id")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card               PaymentCard?         @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([cardId])
+  @@map("regular_payments")
+}
+
+model UserInvestment {
+  id             String          @id @default(cuid())
+  userId         String          @map("user_id")
+  symbol         String          @db.VarChar(20)
+  assetType      String          @map("asset_type") @db.VarChar(20)
+  quantity       Decimal         @db.Decimal(18, 8)
+  buyPriceTry    Decimal         @map("buy_price_try") @db.Decimal(18, 4)
+  note           String?         @db.VarChar(300)
+  paymentSource  PaymentSource   @default(investment_platform) @map("payment_source")
+  cardId         String?         @map("card_id")
+  sourceLabel    String?         @map("source_label") @db.VarChar(120)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card           PaymentCard?    @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([cardId])
+  @@map("user_investments")
 }
