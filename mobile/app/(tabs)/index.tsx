@@ -1,299 +1,347 @@
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ScrollView,
-  StyleSheet,
-  View,
-  Pressable,
-  useColorScheme,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { LineChart, PieChart } from 'react-native-chart-kit';
 
+import { AuthScreen } from '@/components/auth/AuthScreen';
+import { EmptyState } from '@/components/common/EmptyState';
+import { FormField } from '@/components/common/FormField';
+import { LoadingState } from '@/components/common/LoadingState';
+import { ScreenContainer } from '@/components/common/ScreenContainer';
+import { SectionCard } from '@/components/common/SectionCard';
+import { ui } from '@/components/common/ui';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { isCardPaymentSource, PAYMENT_SOURCE_OPTIONS, paymentSourceLabel } from '@/constants/paymentSources';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
 
-// Mock data for demo
-const MOCK_BALANCE = 12450.75;
-const MOCK_TRANSACTIONS = [
-  { id: '1', title: 'Grocery Store', amount: -85.32, date: 'Today', type: 'expense' },
-  { id: '2', title: 'Salary Deposit', amount: 3200.0, date: 'Yesterday', type: 'income' },
-  { id: '3', title: 'Netflix', amount: -15.99, date: 'Mar 4', type: 'expense' },
-  { id: '4', title: 'Coffee Shop', amount: -6.50, date: 'Mar 3', type: 'expense' },
-  { id: '5', title: 'Freelance Payment', amount: 450.0, date: 'Mar 2', type: 'income' },
-];
-const MOCK_INVESTMENTS = [
-  { name: 'Stocks', value: 8420, change: 2.4 },
-  { name: 'Savings', value: 3200, change: 0.5 },
-  { name: 'Crypto', value: 1830.75, change: -1.2 },
-];
+type Expense = {
+  id: string;
+  amount: number;
+  category: string;
+  date: string;
+  description?: string;
+  paymentSource?: string;
+  card?: { label?: string } | null;
+};
+type Card = { id: string; bankName: string; cardName: string; last4Digits: string };
 
-export default function DashboardScreen() {
-  const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme() ?? 'light';
-  const colors = Colors[colorScheme];
-  const tint = colors.tint;
+const CATEGORIES = ['Gıda', 'Ulaşım', 'Fatura', 'Eğlence', 'Teknolojik Alet', 'Diğer'];
 
-  const cardBg = colorScheme === 'dark' ? '#1E2328' : '#F5F6F8';
-  const cardBorder = colorScheme === 'dark' ? '#2A2F36' : '#E8EAED';
+function ExpenseDashboard() {
+  const { width } = useWindowDimensions();
+  const chartWidth = Math.max(280, width - 64);
+  const { user, logout } = useAuth();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [description, setDescription] = useState('');
+  const [paymentSource, setPaymentSource] = useState<string>('cash');
+  const [cardId, setCardId] = useState('');
+
+  const total = useMemo(
+    () => expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    [expenses]
+  );
+  const categoryPie = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of expenses) {
+      const cat = e.category || 'Diğer';
+      map.set(cat, (map.get(cat) || 0) + Number(e.amount || 0));
+    }
+    const colors = ['#f0b90b', '#3b82f6', '#22c55e', '#a855f7', '#f97316', '#ec4899'];
+    return [...map.entries()].map(([name, value], i) => ({
+      name,
+      value,
+      color: colors[i % colors.length],
+      legendFontColor: '#848e9c',
+      legendFontSize: 11,
+    }));
+  }, [expenses]);
+  const trendData = useMemo(() => {
+    const sorted = [...expenses]
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .slice(-7);
+    return {
+      labels: sorted.map((e) => (e.date || '').slice(5)),
+      datasets: [{ data: sorted.map((e) => Number(e.amount || 0)) }],
+    };
+  }, [expenses]);
+
+  const fetchExpenses = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [data, cardData] = await Promise.all([
+        api.get<Expense[]>('/expenses'),
+        api.get<Card[]>('/cards').catch(() => []),
+      ]);
+      setExpenses(Array.isArray(data) ? data : []);
+      setCards(Array.isArray(cardData) ? cardData : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Harcamalar alınamadı.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
+
+  const addExpense = async () => {
+    setError('');
+    setSubmitting(true);
+    try {
+      await api.post('/expenses', {
+        amount: Number(amount),
+        category: category || undefined,
+        date,
+        description: description.trim(),
+        paymentSource,
+        ...(cardId ? { cardId } : {}),
+      });
+      setAmount('');
+      setDescription('');
+      setCategory('');
+      setPaymentSource('cash');
+      setCardId('');
+      await fetchExpenses();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Harcama eklenemedi.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const removeExpense = async (id: string) => {
+    setError('');
+    try {
+      await api.delete(`/expenses/${id}`);
+      setExpenses((prev) => prev.filter((item) => item.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Harcama silinemedi.');
+    }
+  };
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header - App title */}
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.appTitle}>
-            FinWise
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>Your financial overview</ThemedText>
+    <>
+      <View style={styles.headerRow}>
+        <View>
+          <ThemedText type="title">FinWise</ThemedText>
+          <ThemedText style={styles.subtitle}>Harcama Ekle</ThemedText>
+          <ThemedText style={styles.userText}>{user?.name || user?.email}</ThemedText>
         </View>
+        <Pressable onPress={logout}>
+          <ThemedText style={styles.linkText}>Çıkış</ThemedText>
+        </Pressable>
+      </View>
 
-        {/* Total balance card */}
-        <View style={[styles.card, styles.balanceCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-          <ThemedText style={styles.balanceLabel}>Total Balance</ThemedText>
-          <ThemedText style={styles.balanceAmount}>
-            ${MOCK_BALANCE.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </ThemedText>
+      <SectionCard>
+        <FormField
+          label="Harcama Tutarı"
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          placeholder="0.00"
+        />
+        <FormField
+          label={`Kategori (${CATEGORIES.join(', ')})`}
+          value={category}
+          onChangeText={setCategory}
+          placeholder="Seçiniz"
+        />
+        <FormField
+          label="Tarih"
+          value={date}
+          onChangeText={setDate}
+          placeholder="YYYY-AA-GG"
+        />
+        <FormField
+          label="Açıklama"
+          value={description}
+          onChangeText={setDescription}
+          placeholder="İsteğe bağlı açıklama"
+        />
+        <ThemedText style={styles.label}>Ödeme kaynağı</ThemedText>
+        <View style={styles.chips}>
+          {PAYMENT_SOURCE_OPTIONS.map((src) => (
+            <Pressable
+              key={src.value}
+              style={[styles.chip, paymentSource === src.value && styles.chipActive]}
+              onPress={() => {
+                setPaymentSource(src.value);
+                if (!isCardPaymentSource(src.value)) setCardId('');
+              }}
+            >
+              <ThemedText style={[styles.chipText, paymentSource === src.value && styles.chipTextActive]}>
+                {src.label}
+              </ThemedText>
+            </Pressable>
+          ))}
         </View>
-
-        {/* Action buttons */}
-        <View style={styles.actionsRow}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionButton,
-              { backgroundColor: tint, opacity: pressed ? 0.85 : 1 },
-            ]}
-            onPress={() => {}}
-          >
-            <IconSymbol name="plus.circle.fill" size={22} color="#fff" />
-            <ThemedText style={styles.actionButtonText}>Add expense</ThemedText>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.actionButtonSecondary,
-              { backgroundColor: cardBg, borderColor: cardBorder, opacity: pressed ? 0.85 : 1 },
-            ]}
-            onPress={() => {}}
-          >
-            <IconSymbol name="square.and.arrow.up" size={22} color={tint} />
-            <ThemedText style={[styles.actionButtonText, { color: tint }]}>Upload statement</ThemedText>
-          </Pressable>
-        </View>
-
-        {/* Recent transactions */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle">Recent transactions</ThemedText>
-          </View>
-          <View style={[styles.card, styles.listCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-            {MOCK_TRANSACTIONS.map((tx) => (
-              <View key={tx.id} style={styles.transactionRow}>
-                <View style={styles.transactionLeft}>
-                  <View style={[styles.transactionIcon, { backgroundColor: tx.amount < 0 ? '#FEE2E2' : '#D1FAE5' }]}>
-                    <IconSymbol
-                      name={tx.amount < 0 ? 'arrow.down.right' : 'arrow.up.right'}
-                      size={18}
-                      color={tx.amount < 0 ? '#DC2626' : '#059669'}
-                    />
-                  </View>
-                  <View>
-                    <ThemedText style={styles.transactionTitle}>{tx.title}</ThemedText>
-                    <ThemedText style={styles.transactionDate}>{tx.date}</ThemedText>
-                  </View>
-                </View>
-                <ThemedText
-                  style={[
-                    styles.transactionAmount,
-                    { color: tx.amount >= 0 ? '#059669' : '#DC2626' },
-                  ]}
+        {isCardPaymentSource(paymentSource) ? (
+          <>
+            <ThemedText style={styles.label}>Kart (isteğe bağlı)</ThemedText>
+            <View style={styles.chips}>
+              <Pressable style={[styles.chip, !cardId && styles.chipActive]} onPress={() => setCardId('')}>
+                <ThemedText style={[styles.chipText, !cardId && styles.chipTextActive]}>Kart seçilmedi</ThemedText>
+              </Pressable>
+              {cards.map((card) => (
+                <Pressable
+                  key={card.id}
+                  style={[styles.chip, cardId === card.id && styles.chipActive]}
+                  onPress={() => setCardId(card.id)}
                 >
-                  {tx.amount >= 0 ? '+' : ''}${Math.abs(tx.amount).toFixed(2)}
-                </ThemedText>
-              </View>
-            ))}
-          </View>
-        </View>
+                  <ThemedText style={[styles.chipText, cardId === card.id && styles.chipTextActive]}>
+                    {card.bankName} ••••{card.last4Digits}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        ) : null}
+        <Pressable style={styles.primaryButton} onPress={addExpense} disabled={submitting}>
+          <ThemedText style={styles.primaryButtonText}>{submitting ? 'Kaydediliyor...' : 'Kaydet'}</ThemedText>
+        </Pressable>
+      </SectionCard>
 
-        {/* Investment summary */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle">Investment summary</ThemedText>
-          </View>
-          <View style={[styles.card, styles.investmentCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-            {MOCK_INVESTMENTS.map((inv, index) => (
-              <View
-                key={inv.name}
-                style={[
-                  styles.investmentRow,
-                  index < MOCK_INVESTMENTS.length - 1 && styles.investmentRowBorder,
-                  { borderColor: cardBorder },
-                ]}
-              >
-                <View style={styles.investmentLeft}>
-                  <IconSymbol name="chart.line.uptrend.xyaxis" size={20} color={tint} />
-                  <ThemedText style={styles.investmentName}>{inv.name}</ThemedText>
-                </View>
-                <View style={styles.investmentRight}>
-                  <ThemedText style={styles.investmentValue}>
-                    ${inv.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </ThemedText>
-                  <ThemedText
-                    style={[
-                      styles.investmentChange,
-                      { color: inv.change >= 0 ? '#059669' : '#DC2626' },
-                    ]}
-                  >
-                    {inv.change >= 0 ? '+' : ''}{inv.change}%
-                  </ThemedText>
-                </View>
+      <SectionCard>
+        <ThemedText type="subtitle">Harcamalar ({expenses.length})</ThemedText>
+        <ThemedText style={styles.total}>Toplam: {total.toFixed(2)} TL</ThemedText>
+        <Pressable onPress={fetchExpenses}>
+          <ThemedText style={styles.linkText}>Yenile</ThemedText>
+        </Pressable>
+        {error ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
+        {loading ? (
+          <LoadingState />
+        ) : expenses.length === 0 ? (
+          <EmptyState text="Henüz harcama bulunmuyor" />
+        ) : (
+          expenses.map((item) => (
+            <View key={item.id} style={styles.expenseRow}>
+              <View style={styles.expenseTextBlock}>
+                <ThemedText style={styles.expenseTitle}>
+                  {item.category} - {Number(item.amount).toFixed(2)} TL
+                </ThemedText>
+                <ThemedText style={styles.expenseMeta}>{item.date}</ThemedText>
+                <ThemedText style={styles.expenseMeta}>
+                  {paymentSourceLabel(item.paymentSource)}
+                  {item.card?.label ? ` • ${item.card.label}` : ''}
+                </ThemedText>
+                {item.description ? <ThemedText style={styles.expenseMeta}>{item.description}</ThemedText> : null}
               </View>
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-    </ThemedView>
+              <Pressable onPress={() => removeExpense(item.id)}>
+                <ThemedText style={styles.deleteText}>Sil</ThemedText>
+              </Pressable>
+            </View>
+          ))
+        )}
+      </SectionCard>
+      <SectionCard>
+        <ThemedText type="subtitle">Kategori dağılımı</ThemedText>
+        {categoryPie.length === 0 ? (
+          <EmptyState text="Grafik için veri yok." />
+        ) : (
+          <PieChart
+            data={categoryPie}
+            width={chartWidth}
+            height={220}
+            accessor="value"
+            backgroundColor="transparent"
+            paddingLeft="6"
+            chartConfig={{ color: () => '#f0b90b', labelColor: () => '#848e9c' }}
+            absolute
+          />
+        )}
+      </SectionCard>
+      <SectionCard>
+        <ThemedText type="subtitle">Harcama trendi (son 7 kayıt)</ThemedText>
+        {trendData.datasets[0].data.length === 0 ? (
+          <EmptyState text="Grafik için veri yok." />
+        ) : (
+          <LineChart
+            data={trendData}
+            width={chartWidth}
+            height={220}
+            yAxisSuffix=""
+            chartConfig={{
+              backgroundGradientFrom: '#1e2329',
+              backgroundGradientTo: '#1e2329',
+              decimalPlaces: 0,
+              color: () => '#f0b90b',
+              labelColor: () => '#848e9c',
+            }}
+            bezier
+            style={styles.chart}
+          />
+        )}
+      </SectionCard>
+    </>
+  );
+}
+
+export default function DashboardScreen() {
+  const { loading, isAuthenticated } = useAuth();
+
+  if (!loading && !isAuthenticated) {
+    return <AuthScreen />;
+  }
+
+  return (
+    <ScreenContainer>
+        {loading ? (
+          <LoadingState />
+        ) : (
+          <ExpenseDashboard />
+        )}
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    gap: 20,
-  },
-  header: {
-    marginBottom: 4,
-  },
-  appTitle: {
-    letterSpacing: 0.5,
-  },
-  subtitle: {
-    fontSize: 14,
-    opacity: 0.8,
-    marginTop: 2,
-  },
-  card: {
-    borderRadius: 16,
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  subtitle: { color: ui.muted, marginTop: 4 },
+  userText: { color: ui.text, fontSize: 13 },
+  label: { color: ui.muted, fontSize: 13 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderWidth: 1,
-    padding: 20,
+    borderColor: ui.border,
+    borderRadius: 999,
+    backgroundColor: ui.pageBg,
   },
-  balanceCard: {
-    paddingVertical: 24,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    opacity: 0.8,
-    marginBottom: 4,
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
+  chipActive: { borderColor: ui.brand, backgroundColor: '#252b33' },
+  chipText: { color: ui.muted, fontSize: 12 },
+  chipTextActive: { color: ui.brandSoft },
+  primaryButton: {
+    backgroundColor: ui.brand,
+    borderRadius: 4,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 12,
   },
-  actionButtonSecondary: {
-    borderWidth: 1,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  section: {
-    gap: 12,
-  },
-  sectionHeader: {
-    paddingLeft: 4,
-  },
-  listCard: {
-    paddingVertical: 8,
-  },
-  transactionRow: {
+  primaryButtonText: { color: ui.pageBg, fontWeight: '700' },
+  total: { color: ui.brand, fontWeight: '700' },
+  error: { color: ui.danger },
+  linkText: { color: ui.brand, fontWeight: '600' },
+  expenseRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 4,
+    alignItems: 'flex-start',
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: ui.border,
+    paddingTop: 10,
   },
-  transactionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  transactionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  transactionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  transactionDate: {
-    fontSize: 13,
-    opacity: 0.7,
-    marginTop: 2,
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  investmentCard: {
-    paddingVertical: 8,
-  },
-  investmentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 4,
-  },
-  investmentRowBorder: {
-    borderBottomWidth: 1,
-  },
-  investmentLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  investmentName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  investmentRight: {
-    alignItems: 'flex-end',
-  },
-  investmentValue: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  investmentChange: {
-    fontSize: 13,
-    marginTop: 2,
-    fontWeight: '500',
-  },
+  expenseTextBlock: { flex: 1, gap: 2 },
+  expenseTitle: { fontWeight: '600', color: ui.text },
+  expenseMeta: { color: ui.muted, fontSize: 13 },
+  deleteText: { color: ui.danger, fontWeight: '700' },
+  chart: { borderRadius: 8 },
 });
