@@ -9,6 +9,7 @@ import HomeDashboard from "./components/HomeDashboard";
 import RegularPaymentsDashboard from "./components/RegularPaymentsDashboard";
 import InvestmentsDashboard from "./components/InvestmentsDashboard";
 import CardsDashboard from "./components/CardsDashboard";
+import StatementAnalysisPage from "./components/StatementAnalysisPage";
 import PaymentSourceFields from "./components/PaymentSourceFields";
 import { paymentSourceLabel } from "./constants/paymentSources";
 
@@ -23,6 +24,7 @@ const NAV_TEXT = {
     regularPayments: "Düzenli Ödemeler",
     investments: "Yatırımlar",
     cards: "Kartlarım",
+    statementAnalysis: "PDF Ekstre Analizi",
     about: "Hakkında",
     contact: "İletişim",
     light: "Gündüz",
@@ -36,6 +38,7 @@ const NAV_TEXT = {
     regularPayments: "Regular Payments",
     investments: "Investments",
     cards: "Cards",
+    statementAnalysis: "PDF Statement Analysis",
     about: "About",
     contact: "Contact",
     light: "Light",
@@ -296,7 +299,8 @@ function AppShell() {
     return current === "expenses" ||
       current === "regular-payments" ||
       current === "investments" ||
-      current === "cards"
+      current === "cards" ||
+      current === "statement-analysis"
       ? current
       : DEFAULT_AUTH_ROUTE;
   });
@@ -309,7 +313,8 @@ function AppShell() {
         current === "home" ||
         current === "regular-payments" ||
         current === "investments" ||
-        current === "cards"
+        current === "cards" ||
+        current === "statement-analysis"
       ) {
         setRoute(current);
       } else {
@@ -375,6 +380,13 @@ function AppShell() {
             </button>
             <button type="button" className="nav-link" onClick={() => navigate("cards")}>
               {t.cards}
+            </button>
+            <button
+              type="button"
+              className={`nav-link${route === "statement-analysis" ? " active" : ""}`}
+              onClick={() => navigate("statement-analysis")}
+            >
+              {t.statementAnalysis}
             </button>
             <button type="button" className="nav-link" onClick={() => openSection("about")}>
               {t.about}
@@ -451,6 +463,13 @@ function AppShell() {
               <p className="app-subtitle">{t.cards}</p>
             </section>
             <CardsDashboard />
+          </>
+        ) : route === "statement-analysis" ? (
+          <>
+            <section className="page-heading">
+              <h1 className="app-title">{t.statementAnalysis}</h1>
+            </section>
+            <StatementAnalysisPage language={language} />
           </>
         ) : (
           <HomeDashboard language={language} onGoExpenses={() => navigate("expenses")} />
