@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 
 const CATEGORY_OPTIONS = [
@@ -29,6 +29,12 @@ const COPY = {
     limitRequired: "Aylık limit 0'dan büyük olmalıdır.",
     loadError: "Bütçe durumu alınamadı.",
     saveError: "Bütçe kaydedilemedi.",
+    edit: "Düzenle",
+    delete: "Sil",
+    deleteConfirm: "Bu kategori bütçesini silmek istediğinize emin misiniz?",
+    deleting: "Siliniyor...",
+    deleteError: "Bütçe silinemedi.",
+    formHint: "Aynı kategori için kayıt limiti günceller.",
   },
   en: {
     formTitle: "Add budget limit",
@@ -48,12 +54,30 @@ const COPY = {
     limitRequired: "Monthly limit must be greater than 0.",
     loadError: "Could not load budget status.",
     saveError: "Could not save budget.",
+    edit: "Edit",
+    delete: "Delete",
+    deleteConfirm: "Delete this category budget?",
+    deleting: "Deleting...",
+    deleteError: "Could not delete budget.",
+    formHint: "Saving updates the limit when the category already exists.",
   },
 };
 
 const CATEGORY_LABELS = Object.fromEntries(
   CATEGORY_OPTIONS.map((item) => [item.value, { tr: item.labelTr, en: item.labelEn }])
 );
+
+function normalizeStatusItem(raw) {
+  return {
+    id: raw?.id ?? null,
+    category: raw?.category ?? "",
+    monthlyLimit: Number(raw?.monthlyLimit) || 0,
+    spent: Number(raw?.spent) || 0,
+    usagePercent: Number(raw?.usagePercent) || 0,
+    status: raw?.status ?? "safe",
+    message: raw?.message ?? "",
+  };
+}
 
 function formatTry(value, language) {
   if (typeof value !== "number" || Number.isNaN(value)) return "—";
@@ -69,9 +93,11 @@ function statusClass(status) {
 
 export default function BudgetDashboard({ language = "tr" }) {
   const t = COPY[language] || COPY.tr;
+  const formRef = useRef(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState("");
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [category, setCategory] = useState(CATEGORY_OPTIONS[0].value);
@@ -90,7 +116,9 @@ export default function BudgetDashboard({ language = "tr" }) {
       try {
         const response = await api.get("/budgets/status");
         const rows = Array.isArray(response?.data) ? response.data : [];
-        setItems([...rows].sort((a, b) => (b.usagePercent ?? 0) - (a.usagePercent ?? 0)));
+        setItems(
+          rows.map(normalizeStatusItem).sort((a, b) => (b.usagePercent ?? 0) - (a.usagePercent ?? 0))
+        );
       } catch (err) {
         setItems([]);
         setError(err.message || err.data?.error || t.loadError);
@@ -108,7 +136,7 @@ export default function BudgetDashboard({ language = "tr" }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError("");
-    const limitValue = Number(monthlyLimit);
+    const limitValue = Number(String(monthlyLimit).replace(",", "."));
     if (!category) {
       setFormError(t.selectCategory);
       return;
@@ -131,10 +159,33 @@ export default function BudgetDashboard({ language = "tr" }) {
     }
   };
 
+  const startEdit = (item) => {
+    setCategory(item.category);
+    setMonthlyLimit(String(item.monthlyLimit));
+    setFormError("");
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleDelete = async (item) => {
+    if (!window.confirm(t.deleteConfirm)) return;
+
+    setDeletingCategory(item.category);
+    setError("");
+    try {
+      await api.delete(`/budgets/${encodeURIComponent(item.category)}`);
+      await loadStatus(true);
+    } catch (err) {
+      setError(err.message || err.data?.error || t.deleteError);
+    } finally {
+      setDeletingCategory("");
+    }
+  };
+
   return (
     <>
-      <section className="card budget-form-card">
+      <section className="card budget-form-card" ref={formRef}>
         <h2 className="section-title">{t.formTitle}</h2>
+        <p className="budget-form-hint">{t.formHint}</p>
         <form className="expense-form" onSubmit={handleSubmit}>
           <div className="form-field">
             <label htmlFor="budget-category">{t.category}</label>
@@ -172,7 +223,12 @@ export default function BudgetDashboard({ language = "tr" }) {
       <section className="card budget-list-card">
         <div className="budget-list-header">
           <h2 className="section-title">{t.listTitle}</h2>
-          <button type="button" className="btn-secondary budget-refresh-btn" onClick={() => loadStatus()} disabled={loading || saving}>
+          <button
+            type="button"
+            className="btn-secondary budget-refresh-btn"
+            onClick={() => loadStatus()}
+            disabled={loading || saving}
+          >
             {t.refresh}
           </button>
         </div>
@@ -187,6 +243,7 @@ export default function BudgetDashboard({ language = "tr" }) {
           <div className="budget-card-grid">
             {items.map((item) => {
               const percent = Math.max(0, Math.min(100, item.usagePercent ?? 0));
+              const isDeleting = deletingCategory === item.category;
               return (
                 <article key={item.category} className="budget-status-card">
                   <div className="budget-status-card-header">
@@ -199,11 +256,31 @@ export default function BudgetDashboard({ language = "tr" }) {
                     {t.limit}: {formatTry(item.monthlyLimit, language)} • {t.spent}:{" "}
                     {formatTry(item.spent, language)}
                   </p>
-                  <p className="budget-meta">%{percent} {t.usage}</p>
+                  <p className="budget-meta">
+                    %{percent} {t.usage}
+                  </p>
                   <div className="budget-progress-track" aria-hidden="true">
                     <div className={statusClass(item.status)} style={{ width: `${percent}%` }} />
                   </div>
                   <p className="budget-message">{item.message}</p>
+                  <div className="budget-card-actions">
+                    <button
+                      type="button"
+                      className="btn-secondary table-action-btn"
+                      onClick={() => startEdit(item)}
+                      disabled={saving || isDeleting}
+                    >
+                      {t.edit}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary table-action-btn budget-delete-btn"
+                      onClick={() => handleDelete(item)}
+                      disabled={saving || isDeleting}
+                    >
+                      {isDeleting ? t.deleting : t.delete}
+                    </button>
+                  </div>
                 </article>
               );
             })}

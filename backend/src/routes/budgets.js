@@ -6,7 +6,10 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.post('/', budgetController.create);
 router.get('/status', budgetController.status);
+router.get('/', budgetController.list);
+router.post('/', budgetController.create);
+router.patch('/:category', budgetController.update);
+router.delete('/:category', budgetController.remove);
 
 module.exports = router;

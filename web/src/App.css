@@ -1164,6 +1164,24 @@ body.theme-light .hamburger-btn span {
   line-height: 1.45;
 }
 
+.budget-form-hint {
+  margin: -0.25rem 0 1rem;
+  font-size: 0.85rem;
+  color: #848e9c;
+}
+
+.budget-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.budget-delete-btn:hover {
+  border-color: #f6465d;
+  color: #f6465d;
+}
+
 body.theme-light .budget-category-name {
   color: #0f172a;
 }

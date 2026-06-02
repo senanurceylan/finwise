@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/common/EmptyState';
 import { FormField } from '@/components/common/FormField';
@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 
 type BudgetStatusItem = {
+  id: string | null;
   category: string;
   monthlyLimit: number;
   spent: number;
@@ -42,6 +43,18 @@ function categoryLabel(code: string) {
   return CATEGORY_LABELS[code] || code;
 }
 
+function normalizeStatusItem(raw: Partial<BudgetStatusItem> & { category?: string }): BudgetStatusItem {
+  return {
+    id: raw.id ?? null,
+    category: raw.category ?? '',
+    monthlyLimit: Number(raw.monthlyLimit) || 0,
+    spent: Number(raw.spent) || 0,
+    usagePercent: Number(raw.usagePercent) || 0,
+    status: raw.status ?? 'safe',
+    message: raw.message ?? '',
+  };
+}
+
 function statusAccent(status: string, ui: ReturnType<typeof useUi>) {
   if (status === 'exceeded') return ui.danger;
   if (status === 'warning') return ui.brand;
@@ -54,6 +67,7 @@ export default function BudgetsScreen() {
   const [items, setItems] = useState<BudgetStatusItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>(CATEGORY_OPTIONS[0].value);
@@ -78,7 +92,9 @@ export default function BudgetsScreen() {
       try {
         const response = await api.get<BudgetStatusResponse>('/budgets/status');
         const rows = Array.isArray(response?.data) ? response.data : [];
-        setItems([...rows].sort((a, b) => b.usagePercent - a.usagePercent));
+        setItems(
+          rows.map(normalizeStatusItem).sort((a, b) => b.usagePercent - a.usagePercent)
+        );
       } catch (e) {
         setItems([]);
         setError(e instanceof Error ? e.message : 'Bütçe durumu alınamadı.');
@@ -124,6 +140,39 @@ export default function BudgetsScreen() {
     }
   };
 
+  const startEdit = (item: BudgetStatusItem) => {
+    setSelectedCategory(item.category);
+    setMonthlyLimit(String(item.monthlyLimit));
+    setFormError('');
+  };
+
+  const deleteBudget = (item: BudgetStatusItem) => {
+    Alert.alert(
+      'Bütçeyi sil',
+      `${categoryLabel(item.category)} kategorisi bütçesini silmek istiyor musunuz?`,
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            if (!token) return;
+            setDeletingCategory(item.category);
+            setError('');
+            try {
+              await api.delete(`/budgets/${encodeURIComponent(item.category)}`);
+              await loadStatus({ silent: true });
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Bütçe silinemedi.');
+            } finally {
+              setDeletingCategory(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       loadStatus();
@@ -138,12 +187,12 @@ export default function BudgetsScreen() {
       <View style={styles.headerRow}>
         <ThemedText type="title">Bütçe Limitleri</ThemedText>
         <ThemedText style={[styles.subtitle, { color: ui.muted }]}>
-          Bu ayki kategori bazlı harcama durumu
+          Kategori limitleri veritabanında saklanır
         </ThemedText>
       </View>
 
       <SectionCard>
-        <ThemedText type="subtitle">Bütçe Ekle</ThemedText>
+        <ThemedText type="subtitle">Bütçe Ekle / Güncelle</ThemedText>
         <ThemedText style={[styles.label, { color: ui.muted }]}>Kategori</ThemedText>
         <View style={styles.chips}>
           {CATEGORY_OPTIONS.map((option) => {
@@ -204,6 +253,7 @@ export default function BudgetsScreen() {
         ? items.map((item) => {
             const accent = statusAccent(item.status, ui);
             const percent = Math.max(0, Math.min(100, item.usagePercent ?? 0));
+            const isDeleting = deletingCategory === item.category;
             return (
               <SectionCard key={item.category}>
                 <View style={styles.cardHeader}>
@@ -225,6 +275,23 @@ export default function BudgetsScreen() {
                 </View>
 
                 <ThemedText style={[styles.message, { color: ui.text }]}>{item.message}</ThemedText>
+
+                <View style={styles.cardActions}>
+                  <Pressable
+                    style={[styles.actionBtn, { borderColor: ui.border }]}
+                    onPress={() => startEdit(item)}
+                    disabled={saving || isDeleting}>
+                    <ThemedText style={[styles.actionBtnText, { color: ui.text }]}>Düzenle</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.actionBtn, { borderColor: ui.danger }]}
+                    onPress={() => deleteBudget(item)}
+                    disabled={saving || isDeleting}>
+                    <ThemedText style={[styles.actionBtnText, { color: ui.danger }]}>
+                      {isDeleting ? 'Siliniyor...' : 'Sil'}
+                    </ThemedText>
+                  </Pressable>
+                </View>
               </SectionCard>
             );
           })
@@ -315,5 +382,21 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 13,
     marginTop: 8,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

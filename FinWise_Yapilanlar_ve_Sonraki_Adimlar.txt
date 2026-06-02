@@ -96,6 +96,7 @@ G. Yönetim ve yayına alma
 
 
 ■ ÖZET
+
 ------
 Yapılanlar: Veriler kalıcı hale getirildi, kullanıcı girişi ve kişiye
 özel harcama listesi eklendi, güvenlik ve kod düzeni iyileştirildi.
