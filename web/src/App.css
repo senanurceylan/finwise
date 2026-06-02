@@ -1048,6 +1048,143 @@ body.theme-light .hamburger-btn span {
   }
 }
 
+.budget-form-card,
+.budget-list-card {
+  margin-bottom: 1.25rem;
+}
+
+.budget-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.budget-list-header .section-title {
+  margin-bottom: 0;
+}
+
+.budget-refresh-btn {
+  flex-shrink: 0;
+}
+
+.budget-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.budget-status-card {
+  margin-bottom: 0;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid rgba(132, 142, 156, 0.35);
+  border-radius: 8px;
+  background: rgba(30, 35, 41, 0.55);
+}
+
+.budget-status-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.budget-category-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #eaecef;
+}
+
+.budget-status-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.budget-status-badge--safe {
+  color: #0ecb81;
+  background: rgba(14, 203, 129, 0.12);
+}
+
+.budget-status-badge--warning {
+  color: #f0b90b;
+  background: rgba(240, 185, 11, 0.15);
+}
+
+.budget-status-badge--exceeded {
+  color: #f6465d;
+  background: rgba(246, 70, 93, 0.12);
+}
+
+.budget-meta {
+  margin: 0.25rem 0;
+  font-size: 0.88rem;
+  color: #848e9c;
+}
+
+.budget-progress-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(132, 142, 156, 0.25);
+  overflow: hidden;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.budget-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.35s ease;
+  min-width: 0;
+}
+
+.budget-progress-fill--safe {
+  background: #0ecb81;
+}
+
+.budget-progress-fill--warning {
+  background: #f0b90b;
+}
+
+.budget-progress-fill--exceeded {
+  background: #f6465d;
+}
+
+.budget-message {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: #b7bdc6;
+  line-height: 1.45;
+}
+
+body.theme-light .budget-category-name {
+  color: #0f172a;
+}
+
+body.theme-light .budget-meta {
+  color: #64748b;
+}
+
+body.theme-light .budget-message {
+  color: #475569;
+}
+
+body.theme-light .budget-progress-track {
+  background: #e2e8f0;
+}
+
+body.theme-light .budget-status-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
 @media (max-width: 640px) {
   .binance-app {
     padding: 1.3rem 0.9rem;
