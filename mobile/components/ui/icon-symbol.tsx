@@ -21,6 +21,11 @@ const MAPPING = {
   'plus.circle.fill': 'add-circle',
   'square.and.arrow.up': 'upload',
   'chart.line.uptrend.xyaxis': 'trending-up',
+  'chart.bar.fill': 'bar-chart',
+  'chart.pie.fill': 'pie-chart',
+  'creditcard.fill': 'credit-card',
+  'calendar': 'event',
+  'gearshape.fill': 'settings',
   'arrow.down.right': 'arrow-downward',
   'arrow.up.right': 'arrow-upward',
 } as IconMapping;

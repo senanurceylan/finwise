@@ -41,6 +41,58 @@ async function list(req, res, next) {
   }
 }
 
+async function monthlySummary(req, res, next) {
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    const where = {
+      userId: req.userId,
+      date: {
+        gte: startOfMonth,
+        lt: startOfNextMonth,
+      },
+    };
+
+    const [totalAgg, grouped] = await Promise.all([
+      prisma.expense.aggregate({
+        where,
+        _sum: { amount: true },
+      }),
+      prisma.expense.groupBy({
+        by: ['category'],
+        where,
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const categoryTotals = {};
+    let highestCategory = null;
+    let highestValue = -1;
+
+    for (const row of grouped) {
+      const value = Number(row._sum.amount || 0);
+      categoryTotals[row.category] = value;
+      if (value > highestValue) {
+        highestValue = value;
+        highestCategory = row.category;
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        totalExpense: Number(totalAgg._sum.amount || 0),
+        categoryTotals,
+        highestCategory,
+      },
+    });
+  } catch (e) {
+    next(e);
+  }
+}
+
 async function getById(req, res, next) {
   try {
     const { id } = req.params;
@@ -167,4 +219,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, getById, create, update, remove };
+module.exports = { list, monthlySummary, getById, create, update, remove };

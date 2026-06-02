@@ -7,6 +7,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get('/', expenseController.list);
+router.get('/summary/monthly', expenseController.monthlySummary);
 router.get('/:id', expenseController.getById);
 router.post('/', expenseController.create);
 router.put('/:id', expenseController.update);

@@ -65,8 +65,23 @@ model User {
   regularPayments RegularPayment[]
   investments     UserInvestment[]
   paymentCards    PaymentCard[]
+  budgets         Budget[]
 
   @@map("users")
+}
+
+model Budget {
+  id           String          @id @default(cuid())
+  userId       String          @map("user_id")
+  category     ExpenseCategory
+  monthlyLimit Decimal         @map("monthly_limit") @db.Decimal(12, 2)
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@index([userId])
+  @@map("budgets")
 }
 
 model PaymentCard {
