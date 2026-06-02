@@ -25,6 +25,11 @@ function errorHandler(err, req, res, next) {
     return res.status(401).json({ success: false, error: 'Oturum geçersiz veya süresi doldu.' });
   }
 
+  // Multer upload
+  if (err.name === 'MulterError') {
+    return res.status(400).json({ success: false, error: 'Yüklenen dosya geçersiz veya çok büyük.' });
+  }
+
   // Hassas bilgi sızdırmamak için production'da genel mesaj
   const safeMessage = req.app.get('env') === 'production' && status === 500 ? 'Sunucu hatası.' : message;
 

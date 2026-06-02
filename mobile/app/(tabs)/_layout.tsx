@@ -63,6 +63,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="statement-analysis"
+        options={{
+          title: t('tabs_statement'),
+          href: isAuthenticated ? undefined : null,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="square.and.arrow.up" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
           title: t('tabs_settings'),
