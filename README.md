@@ -1,41 +1,270 @@
+# 💰 FinWise – Personal Finance Management Platform
 
-# FinWise
+FinWise is a full-stack personal finance management platform developed for both **web** and **mobile** environments.
 
-Kişisel harcama takip uygulaması — kullanıcı bazlı, JWT kimlik doğrulama ve PostgreSQL.
+The application allows users to:
 
-## Yapı
+* Track daily expenses
+* Analyze monthly spending behavior
+* Upload and analyze PDF bank statements
+* Manage recurring payments
+* Monitor category-based budgets
+* Visualize financial data with charts and summaries
 
-- **backend/** — Node.js + Express + Prisma + PostgreSQL + JWT API
-- **web/** — React + Vite arayüzü (giriş, kayıt, harcama CRUD)
+The project was developed as a modern fintech-style university project using React, React Native, Express.js, Prisma, and PostgreSQL.
 
-## Hızlı başlangıç
+---
 
-### 1. PostgreSQL
+# 🚀 Features
 
-PostgreSQL kurulu ve çalışır olmalı. Veritabanı oluşturun:
+## 🔐 Authentication System
 
-```sql
-CREATE DATABASE finwise;
+* JWT-based authentication
+* User registration and login
+* Protected API routes
+* Persistent session management
+
+---
+
+## 📊 Expense Management
+
+Users can:
+
+* Add expenses manually
+* Categorize transactions
+* Edit and delete expenses
+* View expense history
+
+Supported categories include:
+
+* Food
+* Transportation
+* Bills
+* Entertainment
+* Technology
+* Other
+
+---
+
+## 📄 PDF Bank Statement Analysis
+
+Users can upload PDF bank statements.
+
+The system:
+
+* Extracts text from PDF files
+* Parses transaction information
+* Detects spending categories
+* Generates financial summaries
+* Displays categorized expense analysis
+
+### Backend Endpoint
+
+POST `/statement/analyze`
+
+### Technologies
+
+* pdfjs-dist
+* Express.js
+* Multer
+
+---
+
+## 📈 Monthly Expense Summary
+
+The backend provides monthly financial analytics.
+
+### Features
+
+* Monthly total spending
+* Category-based totals
+* Highest spending category
+* Spending statistics
+
+### Endpoint
+
+GET `/expenses/summary/monthly`
+
+Example response:
+
+```json
+{
+  "totalExpense": 12500,
+  "categoryTotals": {
+    "GIDA": 4200,
+    "ULASIM": 1500,
+    "FATURA": 3000
+  },
+  "highestCategory": "GIDA"
+}
 ```
 
-Örnek bağlantı: `postgresql://postgres:SIFRE@localhost:5432/finwise`
+---
 
-### 2. Backend
+## 💸 Budget Tracking & Warning System
+
+Users can define monthly spending limits by category.
+
+The system calculates:
+
+* Current spending
+* Usage percentage
+* Budget status
+
+### Budget Status Types
+
+* 🟢 Safe
+* 🟡 Warning
+* 🔴 Exceeded
+
+### Backend Endpoints
+
+POST `/budgets`
+
+GET `/budgets/status`
+
+### Example
+
+* Monthly food budget: 3000 TL
+* Current spending: 2700 TL
+* Usage: 90%
+* Status: Warning
+
+Both web and mobile applications include visual budget dashboards with progress bars.
+
+---
+
+## 🔁 Recurring Payments
+
+Users can manage recurring payments such as:
+
+* Rent
+* Subscriptions
+* Bills
+* Loans
+
+Features:
+
+* Due date tracking
+* Reminder system
+* Payment organization
+
+---
+
+# 📱 Platforms
+
+## Web Application
+
+Built with:
+
+* React
+* Vite
+* Chart-based visualizations
+
+## Mobile Application
+
+Built with:
+
+* React Native
+* Expo
+
+Both applications communicate with the same backend API.
+
+---
+
+# 🏗️ System Architecture
+
+```text
+Web Application (React)
+        │
+        │
+Mobile Application (React Native)
+        │
+        ▼
+Backend API (Node.js + Express)
+        │
+        ▼
+Prisma ORM
+        │
+        ▼
+PostgreSQL Database
+```
+
+---
+
+# 🧩 Technology Stack
+
+## Backend
+
+* Node.js
+* Express.js
+* Prisma ORM
+* PostgreSQL
+* JWT Authentication
+* Multer
+* pdfjs-dist
+
+## Frontend (Web)
+
+* React
+* Vite
+* CSS
+
+## Mobile
+
+* React Native
+* Expo
+
+---
+
+# ⚡ Installation
+
+## 1. Clone Repository
+
+```bash
+git clone https://github.com/senanurceylan/finwise.git
+cd finwise
+```
+
+---
+
+## 2. Backend Setup
 
 ```bash
 cd backend
 npm install
-cp .env.example .env
-# .env içinde DATABASE_URL ve JWT_SECRET değerlerini düzenleyin
+```
+
+Create `.env` file:
+
+```env
+DATABASE_URL=postgresql://postgres:PASSWORD@localhost:5432/finwise
+JWT_SECRET=your_secret_key
+```
+
+Run database:
+
+```bash
 npm run db:generate
 npm run db:migrate
 npm run db:seed
-npm start
 ```
 
-API: http://localhost:5000
+Start backend:
 
-### 3. Frontend
+```bash
+npm run dev
+```
+
+Backend runs on:
+
+```text
+http://localhost:5000
+```
+
+---
+
+## 3. Web Setup
 
 ```bash
 cd web
@@ -43,556 +272,351 @@ npm install
 npm run dev
 ```
 
-Tarayıcı: http://localhost:5173
+Web runs on:
 
-Demo giriş (seed sonrası): **demo@finwise.local** / **demo1234**
-
-## Komutlar
-
-| Konum   | Komut              | Açıklama              |
-|---------|--------------------|------------------------|
-| backend | `npm start`        | API’yi başlatır       |
-| backend | `npm run dev`      | API (watch mode)      |
-| backend | `npm run db:migrate` | Migration oluşturur/uygular |
-| backend | `npm run db:seed`  | Örnek kullanıcı/harcama |
-| backend | `npm run db:studio` | Prisma Studio         |
-| web     | `npm run dev`      | Geliştirme sunucusu   |
-| web     | `npm run build`    | Production build      |
-
-Detaylı kurulum ve PostgreSQL seçenekleri için **backend/README.md** dosyasına bakın.
-
-# 💰 SmartSpend – Personal Finance Analyzer
-
-A web and mobile personal finance management application that helps users track expenses, analyze spending behavior, detect unusual spending patterns, and manage recurring payments.
-
-The system allows users to manually add transactions or upload bank statements (PDF) to extract and analyze financial activity.
+```text
+http://localhost:5173
+```
 
 ---
 
-# 🚀 Project Overview
-
-SmartSpend is a full-stack fintech-style application designed to help users understand and manage their financial behavior.
-
-Users can:
-
-- Track daily expenses
-- Categorize transactions
-- Visualize spending patterns
-- Detect unusual spending (anomalies)
-- Manage recurring payments
-- Receive reminders for upcoming payments
-- Analyze bank statements uploaded as PDF files
-
-The system provides data-driven insights using statistical analysis and rule-based anomaly detection.
-
----
-
-# 🎯 Key Features
-
-## 📊 Expense Tracking
-
-Users can manually add their financial transactions.
-
-Each transaction includes:
-
-- Amount
-- Category
-- Date
-- Description
-
-Transactions are stored in the database and used for analytics.
-
----
-
-## 📈 Spending Analytics
-
-The system generates financial insights such as:
-
-- Monthly spending totals
-- Category distribution
-- Spending trends over time
-
-Example insights:
-
-- “Your online shopping expenses increased by 40% this month.”
-- “Transportation spending is above your average.”
-
----
-
-## ⚠️ Anomaly Detection
-
-The application detects unusual spending patterns using statistical rules.
-
-Examples:
-
-- Category spending increased significantly compared to the last 3 months
-- A single unusually large transaction was detected
-
-Example message:
-
-Your online shopping expenses increased by 42% compared to the last 3 months.
-
----
-
-## 🔁 Recurring Payments
-
-Users can create recurring payments such as:
-
-- Rent
-- Subscriptions (Netflix, Spotify)
-- Loans
-
-The system allows:
-
-- Monthly payment scheduling
-- Reminder notifications before due dates
-
-Example reminder:
-
-Your Spotify payment is due in 2 days.
-
----
-
-## 📄 Bank Statement Analysis (PDF)
-
-Users can upload bank statement PDFs.
-
-The system will:
-
-1. Extract text from the PDF
-2. Identify transaction rows
-3. Parse transaction data
-4. Convert them into structured transaction records
-
-Extracted data fields include:
-
-- Date
-- Description
-- Amount
-
-Users can review and confirm extracted transactions before saving them.
-
----
-
-# 🧠 How Anomaly Detection Works
-
-Anomalies are detected using statistical comparisons.
-
-Example method:
-
-Last 3 months average spending = 1000 TL  
-Current month spending = 1600 TL  
-
-Increase rate:
-
-(1600 - 1000) / 1000 = 60%
-
-If the increase exceeds a predefined threshold (e.g., 30%), it is flagged as an anomaly.
-
----
-
-# 🏗️ System Architecture
-
-Web Application (React)
-        │
-        │
-Mobile Application (React Native)
-        │
-        ▼
-Backend API (FastAPI)
-        │
-        ▼
-PostgreSQL Database
-        │
-        ▼
-Analytics & Detection Engine
-
-Both the web and mobile applications communicate with the same backend API.
-
----
-
-# 🗄️ Database Design
-
-Main database tables:
-
-### Users
-Stores user account information.
-
-### Transactions
-Stores financial records.
-
-Fields include:
-
-- amount
-- category
-- description
-- date
-- user_id
-
-### Categories
-Defines expense categories such as:
-
-- Food
-- Transportation
-- Entertainment
-- Shopping
-
-### Recurring Payments
-Stores scheduled payments.
-
-Fields include:
-
-- payment name
-- due day
-- reminder days
-
-### Notifications
-Stores system alerts such as:
-
-- upcoming payments
-- anomaly warnings
-
----
-
-# 🧩 Technology Stack
-
-## Backend
-- FastAPI
-- Python
-- PostgreSQL
-
-FastAPI was chosen because it provides high performance, automatic API documentation, and easy integration with data processing tools.
-
----
-
-## Frontend (Web)
-- React
-- Chart libraries for data visualization
-
----
-
-## Mobile Application
-- React Native (Expo)
-
-The mobile and web applications share the same backend API.
-
----
-
-## PDF Processing
-- pdfplumber / PyMuPDF
-
-These libraries extract text from bank statement PDFs for analysis.
-
----
-
-# 📊 Example User Flow
-
-User adds transactions  
-        ↓  
-Transactions stored in database  
-        ↓  
-Analytics engine processes data  
-        ↓  
-Dashboard shows insights  
-        ↓  
-Anomaly detection identifies unusual spending  
-        ↓  
-User receives notifications
-
----
-
-# 🔮 Future Improvements
-
-Potential future features include:
-
-- AI-based category classification
-- Support for multiple bank formats
-- Budget planning tools
-- Financial forecasting
-- Push notifications
+## 4. Mobile Setup
+
+```bash
+cd mobile
+npm install
+npx expo start --web
+```
 
 ---
 
 # 👩‍💻 Developer
 
-Sena Nur Ceylan  
-Software Engineering Student  
+**Sena Nur Ceylan**
+Software Engineering Student
 Fırat University
 
 ---
 
-# ⭐ Project Status
+# 📌 Project Status
 
-Currently under development.
+✅ Active Development
+✅ Web Application
+✅ Mobile Application
+✅ Backend API
+✅ PostgreSQL Integration
+✅ PDF Statement Analysis
+✅ Budget Tracking System
 
+---------------------------------------------------------------------------------------------
+# 💰 FinWise – Kişisel Finans Yönetim Platformu
 
+FinWise, hem **web** hem de **mobil** platformlar için geliştirilmiş full-stack bir kişisel finans yönetim uygulamasıdır.
 
-# 💰 SmartSpend – Kişisel Finans Analiz Uygulaması
+Uygulama kullanıcıların:
 
-Kullanıcıların harcamalarını takip etmelerini, harcama davranışlarını analiz etmelerini, anormal harcama durumlarını tespit etmelerini ve düzenli ödemelerini yönetmelerini sağlayan web ve mobil tabanlı bir finans uygulamasıdır.
+* Günlük harcamalarını takip etmesini
+* Aylık harcama davranışlarını analiz etmesini
+* PDF banka ekstrelerini analiz etmesini
+* Düzenli ödemelerini yönetmesini
+* Kategori bazlı bütçe limitleri oluşturmasını
+* Finansal verilerini grafiklerle görüntülemesini
 
-Sistem kullanıcıların işlemleri manuel olarak eklemesine veya banka ekstrelerini (PDF) yükleyerek finansal verilerini analiz etmesine olanak sağlar.
+sağlar.
 
----
-
-# 🚀 Proje Genel Bakış
-
-SmartSpend kullanıcıların finansal davranışlarını anlamalarına yardımcı olmak için geliştirilmiş full-stack bir fintech uygulamasıdır.
-
-Kullanıcılar şunları yapabilir:
-
-- Günlük harcamalarını takip edebilir
-- İşlemlerini kategorilere ayırabilir
-- Harcama grafiklerini görebilir
-- Anormal harcamaları tespit edebilir
-- Düzenli ödemelerini yönetebilir
-- Yaklaşan ödemeler için hatırlatma alabilir
-- PDF formatında banka ekstrelerini analiz edebilir
-
-Sistem, makine öğrenmesi kullanmadan istatistiksel analiz ve kural tabanlı yöntemlerle finansal içgörüler sunar.
+Proje; React, React Native, Express.js, Prisma ve PostgreSQL kullanılarak modern fintech tarzında geliştirilmiştir.
 
 ---
 
-# 🎯 Temel Özellikler
+# 🚀 Özellikler
 
-## 📊 Harcama Takibi
+## 🔐 Kimlik Doğrulama Sistemi
 
-Kullanıcılar finansal işlemlerini manuel olarak ekleyebilir.
-
-Her işlem şu bilgileri içerir:
-
-- Tutar
-- Kategori
-- Tarih
-- Açıklama
-
-Bu veriler veritabanında saklanır ve analizlerde kullanılır.
+* JWT tabanlı authentication sistemi
+* Kullanıcı kayıt ve giriş işlemleri
+* Korumalı API endpointleri
+* Oturum yönetimi
 
 ---
 
-## 📈 Harcama Analizi
+## 📊 Harcama Yönetimi
 
-Sistem aşağıdaki finansal analizleri üretir:
+Kullanıcılar:
 
-- Aylık toplam harcama
-- Kategori bazlı harcama dağılımı
-- Zaman içindeki harcama trendleri
+* Manuel harcama ekleyebilir
+* İşlemleri kategorilere ayırabilir
+* Harcamaları düzenleyebilir ve silebilir
+* Geçmiş harcamaları görüntüleyebilir
 
-Örnek analizler:
+Desteklenen kategoriler:
 
-- “Online alışveriş harcamalarınız bu ay %40 arttı.”
-- “Ulaşım harcamalarınız ortalamanın üzerinde.”
+* Gıda
+* Ulaşım
+* Fatura
+* Eğlence
+* Teknoloji
+* Diğer
 
 ---
 
-## ⚠️ Anomali Tespiti
+## 📄 PDF Banka Ekstresi Analizi
 
-Uygulama istatistiksel kurallar kullanarak olağan dışı harcamaları tespit eder.
+Kullanıcılar PDF formatındaki banka ekstrelerini yükleyebilir.
 
-Örnek durumlar:
+Sistem:
 
-- Bir kategorideki harcama son 3 ay ortalamasına göre çok arttıysa
-- Tek seferde yapılan olağan dışı yüksek harcamalar
+* PDF dosyasından metin çıkarır
+* İşlem satırlarını ayrıştırır
+* Harcama kategorilerini analiz eder
+* Finansal özet oluşturur
+* Kategori bazlı harcama analizi sunar
 
-Örnek mesaj:
+### Backend Endpoint
 
-Online alışveriş harcamalarınız son 3 aya göre %42 arttı.
+POST `/statement/analyze`
+
+### Kullanılan Teknolojiler
+
+* pdfjs-dist
+* Express.js
+* Multer
+
+---
+
+## 📈 Aylık Harcama Özeti
+
+Backend tarafında aylık finansal analiz endpoint’i bulunmaktadır.
+
+### Özellikler
+
+* Aylık toplam harcama
+* Kategori bazlı toplamlar
+* En yüksek harcama kategorisi
+* Harcama istatistikleri
+
+### Endpoint
+
+GET `/expenses/summary/monthly`
+
+Örnek response:
+
+```json id="u8f9wl"
+{
+  "totalExpense": 12500,
+  "categoryTotals": {
+    "GIDA": 4200,
+    "ULASIM": 1500,
+    "FATURA": 3000
+  },
+  "highestCategory": "GIDA"
+}
+```
+
+---
+
+## 💸 Bütçe Takip ve Uyarı Sistemi
+
+Kullanıcılar kategori bazlı aylık bütçe limitleri oluşturabilir.
+
+Sistem:
+
+* Güncel harcamayı hesaplar
+* Kullanım yüzdesini gösterir
+* Limit durumunu analiz eder
+
+### Bütçe Durumları
+
+* 🟢 Güvenli
+* 🟡 Uyarı
+* 🔴 Limit Aşıldı
+
+### Backend Endpointleri
+
+POST `/budgets`
+
+GET `/budgets/status`
+
+### Örnek
+
+* Aylık gıda bütçesi: 3000 TL
+* Güncel harcama: 2700 TL
+* Kullanım oranı: %90
+* Durum: Uyarı
+
+Hem web hem mobil uygulamada progress bar destekli bütçe ekranı bulunmaktadır.
 
 ---
 
 ## 🔁 Düzenli Ödemeler
 
-Kullanıcılar aşağıdaki gibi düzenli ödemeler ekleyebilir:
+Kullanıcılar aşağıdaki gibi düzenli ödemeleri yönetebilir:
 
-- Kira
-- Abonelikler (Netflix, Spotify)
-- Kredi ödemeleri
+* Kira
+* Abonelikler
+* Faturalar
+* Kredi ödemeleri
 
-Sistem şu özellikleri sunar:
+Özellikler:
 
-- Aylık ödeme planı oluşturma
-- Ödeme tarihinden önce hatırlatma
-
-Örnek hatırlatma:
-
-Spotify ödemeniz 2 gün sonra yapılacaktır.
+* Son ödeme tarihi takibi
+* Hatırlatma sistemi
+* Düzenli ödeme organizasyonu
 
 ---
 
-## 📄 Banka Ekstresi Analizi (PDF)
+# 📱 Platformlar
 
-Kullanıcılar banka ekstrelerini PDF formatında yükleyebilir.
+## Web Uygulaması
 
-Sistem şu adımları gerçekleştirir:
+Kullanılan teknolojiler:
 
-1. PDF dosyasından metni çıkarır
-2. İşlem satırlarını tespit eder
-3. İşlem bilgilerini ayrıştırır
-4. Yapılandırılmış işlem verileri oluşturur
+* React
+* Vite
+* Grafik ve veri görselleştirme bileşenleri
 
-Çıkarılan veri alanları:
+## Mobil Uygulama
 
-- Tarih
-- Açıklama
-- Tutar
+Kullanılan teknolojiler:
 
-Kullanıcı işlemleri onayladıktan sonra sistem veritabanına kaydeder.
+* React Native
+* Expo
 
----
-
-# 🧠 Anomali Tespiti Nasıl Çalışır?
-
-Anomali tespiti istatistiksel karşılaştırmalar kullanılarak yapılır.
-
-Örnek:
-
-Son 3 ay ortalama harcama = 1000 TL  
-Bu ay harcama = 1600 TL  
-
-Artış oranı:
-
-(1600 - 1000) / 1000 = 60%
-
-Eğer artış belirlenen eşik değerini (örneğin %30) aşarsa sistem bunu anomali olarak işaretler.
+Her iki platform da aynı backend API ile iletişim kurmaktadır.
 
 ---
 
 # 🏗️ Sistem Mimarisi
 
+```text id="efp1po"
 Web Uygulaması (React)
         │
         │
 Mobil Uygulama (React Native)
         │
         ▼
-Backend API (FastAPI)
+Backend API (Node.js + Express)
+        │
+        ▼
+Prisma ORM
         │
         ▼
 PostgreSQL Veritabanı
-        │
-        ▼
-Analiz ve Anomali Motoru
-
-Web ve mobil uygulamalar aynı backend API ile iletişim kurar.
-
----
-
-# 🗄️ Veritabanı Tasarımı
-
-Temel tablolar:
-
-### Users
-Kullanıcı hesap bilgilerini saklar.
-
-### Transactions
-Finansal işlemleri saklar.
-
-Alanlar:
-
-- amount
-- category
-- description
-- date
-- user_id
-
-### Categories
-Harcama kategorilerini tanımlar.
-
-Örnek:
-
-- Gıda
-- Ulaşım
-- Eğlence
-- Alışveriş
-
-### Recurring Payments
-Düzenli ödemeleri saklar.
-
-Alanlar:
-
-- ödeme adı
-- ödeme günü
-- hatırlatma günü
-
-### Notifications
-Sistem bildirimlerini saklar.
-
-Örnek:
-
-- yaklaşan ödeme
-- anormal harcama uyarısı
+```
 
 ---
 
 # 🧩 Kullanılan Teknolojiler
 
 ## Backend
-- FastAPI
-- Python
-- PostgreSQL
 
-FastAPI yüksek performans, otomatik API dokümantasyonu ve veri işleme kolaylığı sağladığı için tercih edilmiştir.
+* Node.js
+* Express.js
+* Prisma ORM
+* PostgreSQL
+* JWT Authentication
+* Multer
+* pdfjs-dist
 
----
+## Frontend (Web)
 
-## Web Frontend
-- React
-- Veri görselleştirme için grafik kütüphaneleri
+* React
+* Vite
+* CSS
 
----
+## Mobil
 
-## Mobil Uygulama
-- React Native (Expo)
-
-Mobil ve web uygulamaları aynı backend API’yi kullanır.
-
----
-
-## PDF İşleme
-- pdfplumber
-- PyMuPDF
-
-Bu kütüphaneler PDF ekstrelerinden metin çıkarılmasını sağlar.
+* React Native
+* Expo
 
 ---
 
-# 📊 Örnek Kullanıcı Akışı
+# ⚡ Kurulum
 
-Kullanıcı işlem ekler  
-        ↓  
-İşlemler veritabanına kaydedilir  
-        ↓  
-Analiz motoru verileri işler  
-        ↓  
-Dashboard finansal analizleri gösterir  
-        ↓  
-Anomali tespiti olağan dışı harcamaları belirler  
-        ↓  
-Kullanıcı bildirim alır
+## 1. Projeyi Klonlama
+
+```bash id="1u4glw"
+git clone https://github.com/senanurceylan/finwise.git
+cd finwise
+```
 
 ---
 
-# 🔮 Gelecek Geliştirmeler
+## 2. Backend Kurulumu
 
-Planlanan özellikler:
+```bash id="sr9xjlwm"
+cd backend
+npm install
+```
 
-- Yapay zeka ile kategori tahmini
-- Birden fazla banka formatı desteği
-- Bütçe planlama araçları
-- Finansal tahminleme
-- Push bildirimleri
+`.env` dosyası oluşturun:
+
+```env id="h7vhlr"
+DATABASE_URL=postgresql://postgres:SIFRE@localhost:5432/finwise
+JWT_SECRET=your_secret_key
+```
+
+Veritabanını hazırlayın:
+
+```bash id="ysjlwm"
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+```
+
+Backend’i başlatın:
+
+```bash id="lwpfzt"
+npm run dev
+```
+
+Backend adresi:
+
+```text id="6b5q84"
+http://localhost:5000
+```
+
+---
+
+## 3. Web Kurulumu
+
+```bash id="0n2hlu"
+cd web
+npm install
+npm run dev
+```
+
+Web adresi:
+
+```text id="xmbx2x"
+http://localhost:5173
+```
+
+---
+
+## 4. Mobil Kurulum
+
+```bash id="z79zv1"
+cd mobile
+npm install
+npx expo start --web
+```
 
 ---
 
 # 👩‍💻 Geliştirici
 
-Sena Nur Ceylan  
-Yazılım Mühendisliği Öğrencisi  
+**Sena Nur Ceylan**
+Yazılım Mühendisliği Öğrencisi
 Fırat Üniversitesi
 
 ---
 
-# ⭐ Proje Durumu
+# 📌 Proje Durumu
 
-Geliştirme aşamasında.
-
+✅ Aktif Geliştirme
+✅ Web Uygulaması
+✅ Mobil Uygulama
+✅ Backend API
+✅ PostgreSQL Entegrasyonu
+✅ PDF Ekstre Analizi
+✅ Bütçe Takip Sistemi
