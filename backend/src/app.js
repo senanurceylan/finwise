@@ -14,6 +14,7 @@ const investmentRoutes = require('./routes/investments');
 const cardRoutes = require('./routes/cards');
 const statementRoutes = require('./routes/statement');
 const budgetRoutes = require('./routes/budgets');
+const chatbotRoutes = require('./routes/chatbot');
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use('/investments', apiLimiter);
 app.use('/cards', apiLimiter);
 app.use('/statement', apiLimiter);
 app.use('/budgets', apiLimiter);
+app.use('/chatbot', apiLimiter);
 
 app.get('/', (req, res) => {
   res.json({ message: 'FinWise API', version: '2.0', docs: '/api-docs' });
@@ -54,6 +56,7 @@ app.use('/investments', investmentRoutes);
 app.use('/cards', cardRoutes);
 app.use('/statement', statementRoutes);
 app.use('/budgets', budgetRoutes);
+app.use('/chatbot', chatbotRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Kaynak bulunamadı.' });

@@ -11,6 +11,7 @@ import InvestmentsDashboard from "./components/InvestmentsDashboard";
 import CardsDashboard from "./components/CardsDashboard";
 import StatementAnalysisPage from "./components/StatementAnalysisPage";
 import BudgetDashboard from "./components/BudgetDashboard";
+import ChatbotPage from "./components/ChatbotPage";
 import PaymentSourceFields from "./components/PaymentSourceFields";
 import { paymentSourceLabel } from "./constants/paymentSources";
 
@@ -27,6 +28,7 @@ const NAV_TEXT = {
     cards: "Kartlarım",
     statementAnalysis: "PDF Ekstre Analizi",
     budgets: "Bütçe",
+    chatbot: "Finans Asistanı",
     about: "Hakkında",
     contact: "İletişim",
     light: "Gündüz",
@@ -42,6 +44,7 @@ const NAV_TEXT = {
     cards: "Cards",
     statementAnalysis: "PDF Statement Analysis",
     budgets: "Budgets",
+    chatbot: "Finance Assistant",
     about: "About",
     contact: "Contact",
     light: "Light",
@@ -304,7 +307,8 @@ function AppShell() {
       current === "investments" ||
       current === "cards" ||
       current === "statement-analysis" ||
-      current === "budgets"
+      current === "budgets" ||
+      current === "chatbot"
       ? current
       : DEFAULT_AUTH_ROUTE;
   });
@@ -319,7 +323,8 @@ function AppShell() {
         current === "investments" ||
         current === "cards" ||
         current === "statement-analysis" ||
-        current === "budgets"
+        current === "budgets" ||
+        current === "chatbot"
       ) {
         setRoute(current);
       } else {
@@ -399,6 +404,13 @@ function AppShell() {
               onClick={() => navigate("budgets")}
             >
               {t.budgets}
+            </button>
+            <button
+              type="button"
+              className={`nav-link${route === "chatbot" ? " active" : ""}`}
+              onClick={() => navigate("chatbot")}
+            >
+              {t.chatbot}
             </button>
             <button type="button" className="nav-link" onClick={() => openSection("about")}>
               {t.about}
@@ -493,6 +505,8 @@ function AppShell() {
             </section>
             <BudgetDashboard language={language} />
           </>
+        ) : route === "chatbot" ? (
+          <ChatbotPage language={language} />
         ) : (
           <HomeDashboard language={language} onGoExpenses={() => navigate("expenses")} />
         )}

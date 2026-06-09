@@ -10,6 +10,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
+    "seed:chatbot": "node prisma/seed-demo-chatbot.js",
     "db:seed:regular-payments": "node prisma/seedRegularPayments.js",
     "db:studio": "prisma studio"
   },

@@ -79,6 +79,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="chatbot"
+        options={{
+          title: t('tabs_chatbot'),
+          href: isAuthenticated ? undefined : null,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="bubble.left.and.bubble.right.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
           title: t('tabs_settings'),

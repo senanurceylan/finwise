@@ -26,6 +26,7 @@ const MAPPING = {
   'creditcard.fill': 'credit-card',
   'calendar': 'event',
   'gearshape.fill': 'settings',
+  'bubble.left.and.bubble.right.fill': 'chat',
   'arrow.down.right': 'arrow-downward',
   'arrow.up.right': 'arrow-upward',
 } as IconMapping;

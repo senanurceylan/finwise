@@ -17,7 +17,8 @@
     { "name": "expenses", "description": "Tek seferlik harcamalar" },
     { "name": "regular-payments", "description": "Düzenli ödemeler (`regular_payments` tablosu)" },
     { "name": "market", "description": "Canlı piyasa verileri (cache ile)" },
-    { "name": "investments", "description": "Kullanıcının yatırım portföy kayıtları" }
+    { "name": "investments", "description": "Kullanıcının yatırım portföy kayıtları" },
+    { "name": "chatbot", "description": "Finans asistanı (kural tabanlı yanıtlar)" }
   ],
   "components": {
     "securitySchemes": {
@@ -246,6 +247,26 @@
           "quantity": { "type": "number", "exclusiveMinimum": 0 },
           "buyPriceTry": { "type": "number", "minimum": 0 },
           "note": { "type": "string", "maxLength": 300 }
+        }
+      },
+      "ChatbotMessageBody": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "Bu ay ne kadar harcadım?"
+          }
+        }
+      },
+      "ChatbotMessageResponse": {
+        "type": "object",
+        "properties": {
+          "reply": {
+            "type": "string",
+            "example": "Haziran 2026 döneminde toplam 1.250,00 ₺ harcama yaptınız (8 işlem)."
+          }
         }
       },
       "RootResponse": {
@@ -950,6 +971,48 @@
           "204": { "description": "Silindi" },
           "404": {
             "description": "Kayıt bulunamadı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chatbot/message": {
+      "post": {
+        "tags": ["chatbot"],
+        "summary": "Finans asistanına mesaj gönder",
+        "description": "JWT ile kimliği doğrulanmış kullanıcının harcama ve bütçe verilerine göre kural tabanlı yanıt üretir.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChatbotMessageBody" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Asistan yanıtı",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatbotMessageResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Doğrulama hatası",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Yetkilendirme gerekli",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorBody" }
