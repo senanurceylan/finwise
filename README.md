@@ -16,6 +16,47 @@ The project was developed as a modern fintech-style university project using Rea
 ---
 
 # 🚀 Features
+## 🤖 AI Finance Assistant (Web & Mobile)
+
+FinWise includes an AI-powered Finance Assistant available on both web and mobile platforms.
+
+The assistant analyzes user financial data and provides personalized insights based on expenses and budgets.
+
+* Monthly spending analysis
+* Highest spending category detection
+* Budget status evaluation
+* Personalized saving suggestions
+* Purchase and installment evaluation
+* Natural language interaction
+
+### Example Questions
+
+* "How much did I spend this month?"
+* "Which category did I spend the most on?"
+* "Did I exceed my budget?"
+* "Give me saving suggestions."
+* "Is buying a 100,000 TL product with 12 installments reasonable based on my spending habits?"
+
+### Backend Endpoint
+
+POST `/chatbot/message`
+
+### Example Request
+
+```json
+{
+  "message": "How much did I spend this month?"
+}
+```
+
+### Example Response
+
+```json
+{
+  "reply": "You spent 6,350 TL this month across 5 transactions."
+}
+```
+
 
 ## 🔐 Authentication System
 
@@ -329,6 +370,49 @@ Proje; React, React Native, Express.js, Prisma ve PostgreSQL kullanılarak moder
 ---
 
 # 🚀 Özellikler
+
+## 🤖 Yapay Zekâ Destekli Finans Asistanı (Web & Mobil)
+
+FinWise, hem web hem de mobil platformlarda çalışan bir Finans Asistanı içermektedir.
+
+Asistan, kullanıcıların harcama ve bütçe verilerini analiz ederek kişiselleştirilmiş finansal öneriler sunar.
+
+
+* Aylık harcama analizi
+* En çok harcama yapılan kategoriyi belirleme
+* Bütçe durumunu değerlendirme
+* Tasarruf önerileri sunma
+* Taksitli alışveriş değerlendirmesi
+* Doğal dil ile etkileşim
+
+### Örnek Sorular
+
+* "Bu ay ne kadar harcadım?"
+* "En çok hangi kategoriye harcadım?"
+* "Bütçemi aştım mı?"
+* "Tasarruf önerisi ver."
+* "100.000 TL'lik bir ürünü 12 taksitle almak mantıklı mı?"
+
+### Backend Endpoint
+
+POST `/chatbot/message`
+
+### Örnek İstek
+
+```json
+{
+  "message": "Bu ay ne kadar harcadım?"
+}
+```
+
+### Örnek Yanıt
+
+```json
+{
+  "reply": "Bu ay toplam 6.350 TL harcama yaptınız."
+}
+```
+
 
 ## 🔐 Kimlik Doğrulama Sistemi
 
