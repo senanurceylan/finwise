@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
+import {
+  buildDemoStatusRows,
+  upsertLocalDemoBudget,
+  removeLocalDemoBudget,
+} from "../utils/demoBudgets";
 
 const CATEGORY_OPTIONS = [
   { value: "GIDA", labelTr: "Gıda", labelEn: "Groceries" },
@@ -116,12 +121,16 @@ export default function BudgetDashboard({ language = "tr" }) {
       try {
         const response = await api.get("/budgets/status");
         const rows = Array.isArray(response?.data) ? response.data : [];
-        setItems(
-          rows.map(normalizeStatusItem).sort((a, b) => (b.usagePercent ?? 0) - (a.usagePercent ?? 0))
-        );
-      } catch (err) {
-        setItems([]);
-        setError(err.message || err.data?.error || t.loadError);
+        if (rows.length > 0 || response?.demo) {
+          setItems(
+            rows.map(normalizeStatusItem).sort((a, b) => (b.usagePercent ?? 0) - (a.usagePercent ?? 0))
+          );
+        } else {
+          setItems(buildDemoStatusRows());
+        }
+      } catch {
+        setItems(buildDemoStatusRows());
+        setError("");
       } finally {
         if (!silent) setLoading(false);
       }
@@ -152,8 +161,12 @@ export default function BudgetDashboard({ language = "tr" }) {
       setMonthlyLimit("");
       setCategory(CATEGORY_OPTIONS[0].value);
       await loadStatus(true);
-    } catch (err) {
-      setFormError(err.message || err.data?.error || t.saveError);
+    } catch {
+      const updated = upsertLocalDemoBudget(category, limitValue);
+      setItems(updated.map(normalizeStatusItem));
+      setMonthlyLimit("");
+      setCategory(CATEGORY_OPTIONS[0].value);
+      setFormError("");
     } finally {
       setSaving(false);
     }
@@ -174,8 +187,10 @@ export default function BudgetDashboard({ language = "tr" }) {
     try {
       await api.delete(`/budgets/${encodeURIComponent(item.category)}`);
       await loadStatus(true);
-    } catch (err) {
-      setError(err.message || err.data?.error || t.deleteError);
+    } catch {
+      const updated = removeLocalDemoBudget(item.category);
+      setItems(updated.map(normalizeStatusItem));
+      setError("");
     } finally {
       setDeletingCategory("");
     }

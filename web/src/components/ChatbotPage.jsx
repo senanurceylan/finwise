@@ -44,6 +44,90 @@ function normalizeMessage(text) {
   return text.trim().toLocaleLowerCase("tr-TR");
 }
 
+const DEMO_MONTHLY_INCOME = 50000;
+const DEMO_MONTHLY_SPENDING = 10550;
+
+function parseTurkishMoneyToken(raw) {
+  let value = raw.trim();
+  if (!value) return null;
+  if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(value)) {
+    value = value.replace(/\./g, "").replace(",", ".");
+  } else if (/^\d+(,\d{1,2})?$/.test(value)) {
+    value = value.replace(",", ".");
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(value)) {
+    value = value.replace(/\./g, "");
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parsePurchaseAmount(text) {
+  const labeledMatch = text.match(
+    /(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)\s*(?:tl|lira|₺)/i
+  );
+  if (labeledMatch) return parseTurkishMoneyToken(labeledMatch[1]);
+  const spacedThousandsMatch = text.match(/\b(\d{1,3}(?:\.\d{3})+)\b/);
+  if (spacedThousandsMatch) return parseTurkishMoneyToken(spacedThousandsMatch[1]);
+  const plainMatch = text.match(/\b(\d{4,})\b/);
+  if (plainMatch) return parseTurkishMoneyToken(plainMatch[1]);
+  return null;
+}
+
+function parseInstallmentCount(text) {
+  const patterns = [/(\d+)\s*ay(?:lık|lik)?(?:\s*taksit(?:li|siz)?)?/, /(\d+)\s*taksit(?:li|siz)?(?:\s*ay)?/];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const count = Number.parseInt(match[1], 10);
+      if (Number.isFinite(count) && count > 0) return count;
+    }
+  }
+  return null;
+}
+
+function formatTry(amount) {
+  return `${Number(amount).toLocaleString("tr-TR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} ₺`;
+}
+
+function resolvePurchaseEvaluationFallback(msg) {
+  const totalAmount = parsePurchaseAmount(msg);
+  const installmentCount = parseInstallmentCount(msg);
+  if (!totalAmount || !installmentCount) return null;
+
+  const monthlyInstallment = totalAmount / installmentCount;
+  const newMonthlyLoad = DEMO_MONTHLY_SPENDING + monthlyInstallment;
+  const incomeRemaining = DEMO_MONTHLY_INCOME - newMonthlyLoad;
+  const incomeUsagePercent =
+    DEMO_MONTHLY_INCOME > 0 ? (newMonthlyLoad / DEMO_MONTHLY_INCOME) * 100 : 0;
+
+  let comment = "";
+  if (incomeUsagePercent < 50) {
+    comment = "Gelir ve harcama dengesi açısından kontrollü görünüyor.";
+  } else if (incomeUsagePercent <= 70) {
+    comment = "Harcama + taksit gelirin önemli bir kısmını oluşturuyor; dikkatli olunmalı.";
+  } else {
+    comment = "Harcama + taksit gelirin %70 üzerinde; bu alışveriş riskli olabilir.";
+  }
+
+  return [
+    "Satın alma değerlendirmesi (demo gelir: 50.000 TL/ay):",
+    `• Toplam ürün tutarı: ${formatTry(totalAmount)}`,
+    `• Taksit sayısı: ${installmentCount} ay`,
+    `• Aylık taksit tutarı: ${formatTry(monthlyInstallment)}`,
+    `• Aylık gelir (demo): ${formatTry(DEMO_MONTHLY_INCOME)}`,
+    `• Mevcut ay harcaması (demo): ${formatTry(DEMO_MONTHLY_SPENDING)}`,
+    `• Harcama + taksit toplamı: ${formatTry(newMonthlyLoad)}`,
+    `• Gelire göre kalan tutar: ${formatTry(incomeRemaining)}`,
+    `• Gelirin kullanılacak payı: %${Math.round(incomeUsagePercent)}`,
+    "",
+    `Yorum: ${comment}`,
+    "Not: Sunum için aylık gelir 50.000 TL varsayımıyla hesaplanmıştır.",
+  ].join("\n");
+}
+
 function resolveBotReply(userText, language = "tr") {
   const replies = BOT_REPLIES[language] || BOT_REPLIES.tr;
   const msg = normalizeMessage(userText);
@@ -87,6 +171,9 @@ function resolveBotReply(userText, language = "tr") {
   if (msg.includes("merhaba") || msg.includes("selam")) {
     return replies.hello;
   }
+
+  const purchaseReply = resolvePurchaseEvaluationFallback(msg);
+  if (purchaseReply) return purchaseReply;
 
   return replies.fallback;
 }

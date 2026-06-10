@@ -1,6 +1,13 @@
 const { Prisma } = require('@prisma/client');
 const { prisma } = require('../utils/prisma');
 const {
+  isMissingBudgetTableError,
+  getDemoStatusRows,
+  getDemoBudgetList,
+  upsertDemoBudget,
+  removeDemoBudget,
+} = require('../utils/demoBudgets');
+const {
   validateCreateBudget,
   validateUpdateBudget,
   validateBudgetCategoryParam,
@@ -35,12 +42,12 @@ function serializeBudget(row) {
 
 function resolveUsageStatus(usagePercent) {
   if (usagePercent >= 100) {
-    return { status: 'exceeded', message: 'Aylık limitinizi aştınız.' };
+    return { status: 'exceeded', message: 'Limit aşıldı' };
   }
   if (usagePercent >= 80) {
-    return { status: 'warning', message: 'Limitinize yaklaştınız.' };
+    return { status: 'warning', message: 'Dikkat' };
   }
-  return { status: 'safe', message: 'Harcamalarınız limit dahilinde.' };
+  return { status: 'safe', message: 'Güvenli' };
 }
 
 function buildStatusRow(budget, spentMap) {
@@ -81,6 +88,13 @@ async function list(req, res, next) {
       data: budgets.map(serializeBudget),
     });
   } catch (e) {
+    if (isMissingBudgetTableError(e)) {
+      return res.json({
+        success: true,
+        demo: true,
+        data: getDemoBudgetList(),
+      });
+    }
     return next(e);
   }
 }
@@ -120,6 +134,21 @@ async function create(req, res, next) {
       data: serializeBudget(row),
     });
   } catch (e) {
+    if (isMissingBudgetTableError(e)) {
+      const demoRow = upsertDemoBudget(category, monthlyLimit);
+      const now = new Date().toISOString();
+      return res.status(201).json({
+        success: true,
+        demo: true,
+        data: {
+          id: demoRow.id,
+          category: demoRow.category,
+          monthlyLimit: demoRow.monthlyLimit,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+    }
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       return res.status(409).json({
         success: false,
@@ -175,6 +204,21 @@ async function update(req, res, next) {
       data: serializeBudget(row),
     });
   } catch (e) {
+    if (isMissingBudgetTableError(e)) {
+      const demoRow = upsertDemoBudget(category, monthlyLimit);
+      const now = new Date().toISOString();
+      return res.json({
+        success: true,
+        demo: true,
+        data: {
+          id: demoRow.id,
+          category: demoRow.category,
+          monthlyLimit: demoRow.monthlyLimit,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+    }
     return next(e);
   }
 }
@@ -210,6 +254,10 @@ async function remove(req, res, next) {
 
     return res.status(204).send();
   } catch (e) {
+    if (isMissingBudgetTableError(e)) {
+      removeDemoBudget(category);
+      return res.status(204).send();
+    }
     return next(e);
   }
 }
@@ -253,6 +301,13 @@ async function status(req, res, next) {
       data,
     });
   } catch (e) {
+    if (isMissingBudgetTableError(e)) {
+      return res.json({
+        success: true,
+        demo: true,
+        data: getDemoStatusRows(),
+      });
+    }
     return next(e);
   }
 }

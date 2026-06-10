@@ -18,11 +18,17 @@ function getCurrentMonthRange() {
   return { startOfMonth, startOfNextMonth, now };
 }
 
+const DEMO_MONTHLY_INCOME = 50000;
+
 function formatTry(amount) {
   return `${toNumber(amount).toLocaleString('tr-TR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} ₺`;
+}
+
+function formatPercent(value) {
+  return `${Math.round(value)}%`;
 }
 
 function normalizeMessage(text) {
@@ -366,30 +372,32 @@ function replyPurchaseEvaluation(context, message) {
   const monthlyInstallment = totalAmount / installmentCount;
   const currentMonthlySpending = context.totalSpent;
   const newMonthlyLoad = currentMonthlySpending + monthlyInstallment;
+  const incomeRemaining = DEMO_MONTHLY_INCOME - newMonthlyLoad;
+  const incomeUsagePercent =
+    DEMO_MONTHLY_INCOME > 0 ? (newMonthlyLoad / DEMO_MONTHLY_INCOME) * 100 : 0;
 
   let comment = '';
-  if (currentMonthlySpending <= 0) {
-    comment =
-      'Bu ay kayıtlı harcamanız olmadığı için karşılaştırma sınırlı; yine de aylık taksit tutarını planlamanız önemli.';
-  } else if (monthlyInstallment > currentMonthlySpending * 0.5) {
-    comment = 'Bu alışveriş aylık harcama yükünüzü ciddi artırabilir.';
+  if (incomeUsagePercent < 50) {
+    comment = 'Gelir ve harcama dengesi açısından kontrollü görünüyor.';
+  } else if (incomeUsagePercent <= 70) {
+    comment = 'Harcama + taksit gelirin önemli bir kısmını oluşturuyor; dikkatli olunmalı.';
   } else {
-    comment = 'Mevcut harcama düzeninize göre daha yönetilebilir görünüyor.';
+    comment = 'Harcama + taksit gelirin %70 üzerinde; bu alışveriş riskli olabilir.';
   }
 
-  const disclaimer =
-    'Gelir bilginiz olmadığı için bu sadece harcama geçmişinize göre yapılan basit bir değerlendirmedir.';
-
   return [
-    'Satın alma değerlendirmesi:',
+    'Satın alma değerlendirmesi (demo gelir: 50.000 TL/ay):',
     `• Toplam ürün tutarı: ${formatTry(totalAmount)}`,
     `• Taksit sayısı: ${installmentCount} ay`,
     `• Aylık taksit tutarı: ${formatTry(monthlyInstallment)}`,
+    `• Aylık gelir (demo): ${formatTry(DEMO_MONTHLY_INCOME)}`,
     `• Mevcut ay harcaması (${context.monthLabel}): ${formatTry(currentMonthlySpending)}`,
-    `• Yeni toplam aylık yük (harcama + taksit): ${formatTry(newMonthlyLoad)}`,
+    `• Harcama + taksit toplamı: ${formatTry(newMonthlyLoad)}`,
+    `• Gelire göre kalan tutar: ${formatTry(incomeRemaining)}`,
+    `• Gelirin kullanılacak payı: ${formatPercent(incomeUsagePercent)}`,
     '',
     `Yorum: ${comment}`,
-    disclaimer,
+    'Not: Sunum için aylık gelir 50.000 TL varsayımıyla hesaplanmıştır.',
   ].join('\n');
 }
 

@@ -10,6 +10,11 @@ import { useUi } from '@/components/common/ui';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
+import {
+  buildDemoStatusRows,
+  upsertLocalDemoBudget,
+  removeLocalDemoBudget,
+} from '@/utils/demoBudgets';
 
 type BudgetStatusItem = {
   id: string | null;
@@ -23,6 +28,7 @@ type BudgetStatusItem = {
 
 type BudgetStatusResponse = {
   success: boolean;
+  demo?: boolean;
   data: BudgetStatusItem[];
 };
 
@@ -92,12 +98,16 @@ export default function BudgetsScreen() {
       try {
         const response = await api.get<BudgetStatusResponse>('/budgets/status');
         const rows = Array.isArray(response?.data) ? response.data : [];
-        setItems(
-          rows.map(normalizeStatusItem).sort((a, b) => b.usagePercent - a.usagePercent)
-        );
-      } catch (e) {
-        setItems([]);
-        setError(e instanceof Error ? e.message : 'Bütçe durumu alınamadı.');
+        if (rows.length > 0 || response?.demo) {
+          setItems(
+            rows.map(normalizeStatusItem).sort((a, b) => b.usagePercent - a.usagePercent)
+          );
+        } else {
+          setItems(buildDemoStatusRows());
+        }
+      } catch {
+        setItems(buildDemoStatusRows());
+        setError('');
       } finally {
         if (!options?.silent) {
           setLoading(false);
@@ -133,8 +143,12 @@ export default function BudgetsScreen() {
       setMonthlyLimit('');
       setSelectedCategory(CATEGORY_OPTIONS[0].value);
       await loadStatus({ silent: true });
-    } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Bütçe kaydedilemedi.');
+    } catch {
+      const updated = upsertLocalDemoBudget(selectedCategory, limitValue);
+      setItems(updated.map(normalizeStatusItem));
+      setMonthlyLimit('');
+      setSelectedCategory(CATEGORY_OPTIONS[0].value);
+      setFormError('');
     } finally {
       setSaving(false);
     }
@@ -162,8 +176,10 @@ export default function BudgetsScreen() {
             try {
               await api.delete(`/budgets/${encodeURIComponent(item.category)}`);
               await loadStatus({ silent: true });
-            } catch (e) {
-              setError(e instanceof Error ? e.message : 'Bütçe silinemedi.');
+            } catch {
+              const updated = removeLocalDemoBudget(item.category);
+              setItems(updated.map(normalizeStatusItem));
+              setError('');
             } finally {
               setDeletingCategory(null);
             }
