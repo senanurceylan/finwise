@@ -1,4 +1,5 @@
 const { analyzeStatementPdfBuffer } = require('../services/statementAnalysis');
+const { indexStatementPdfBuffer } = require('../services/statementRagService');
 
 async function analyze(req, res, next) {
   try {
@@ -7,9 +8,23 @@ async function analyze(req, res, next) {
     }
 
     const result = await analyzeStatementPdfBuffer(req.file.buffer);
+
+    let rag;
+    try {
+      rag = await indexStatementPdfBuffer({
+        userId: req.userId,
+        buffer: req.file.buffer,
+        fileName: req.file.originalname,
+      });
+    } catch (error) {
+      console.warn('[statement] RAG indexleme başarısız:', error.message);
+      rag = { indexed: false, reason: 'index_failed', error: error.message };
+    }
+
     return res.json({
       success: true,
       data: result,
+      rag,
     });
   } catch (e) {
     if (e.statusCode) {

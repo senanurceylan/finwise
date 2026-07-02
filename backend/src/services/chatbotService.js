@@ -1,5 +1,13 @@
 const { prisma } = require('../utils/prisma');
 const { toLabel } = require('../utils/categoryMap');
+const {
+  isOpenAiConfigured,
+  generateFinanceAssistantReply,
+} = require('./openaiChatService');
+const {
+  findRelevantStatementChunks,
+  formatPdfContext,
+} = require('./statementRagService');
 
 function toNumber(value) {
   if (value == null) return 0;
@@ -413,10 +421,51 @@ function replyUnknown() {
   return 'Bu soruyu henüz anlayamadım. Şunları deneyebilirsiniz: "Bu ay ne kadar harcadım?", "En çok hangi kategoriye harcadım?", "Bütçemi aştım mı?", "Tasarruf önerisi ver", "100.000 TL ile 12 ay taksitli bir şey alacağım mantıklı mı?".';
 }
 
-async function buildReply(userId, message) {
+function buildFinanceSummary(context) {
+  const lines = [`Dönem: ${context.monthLabel}`];
+
+  if (context.expenseCount === 0 || context.totalSpent <= 0) {
+    lines.push('Bu dönemde kayıtlı harcama yok.');
+  } else {
+    lines.push(
+      `Toplam harcama: ${formatTry(context.totalSpent)} (${context.expenseCount} işlem)`
+    );
+
+    if (context.topCategory && context.topCategoryAmount > 0) {
+      lines.push(
+        `En yüksek kategori: ${context.topCategoryLabel} — ${formatTry(context.topCategoryAmount)}`
+      );
+    }
+
+    const categoryLines = Object.entries(context.spentByCategory)
+      .filter(([, amount]) => toNumber(amount) > 0)
+      .sort((a, b) => toNumber(b[1]) - toNumber(a[1]))
+      .map(([category, amount]) => `${toLabel(category)}: ${formatTry(amount)}`);
+
+    if (categoryLines.length > 0) {
+      lines.push(`Kategori dağılımı: ${categoryLines.join('; ')}`);
+    }
+  }
+
+  if (context.budgetStatuses.length === 0) {
+    lines.push('Tanımlı bütçe limiti yok.');
+  } else {
+    const budgetLines = context.budgetStatuses.map((row) => {
+      const statusLabel =
+        row.status === 'exceeded' ? 'limit aşıldı' : row.status === 'warning' ? 'limite yakın' : 'güvenli';
+      return `${row.categoryLabel}: limit ${formatTry(row.monthlyLimit)}, harcama ${formatTry(row.spent)} (%${row.usagePercent}, ${statusLabel})`;
+    });
+    lines.push(`Bütçeler: ${budgetLines.join('; ')}`);
+  }
+
+  lines.push('Aylık gelir: sistemde kayıtlı değil');
+
+  return lines.join('\n');
+}
+
+function buildRuleBasedReply(message, context) {
   const normalized = normalizeMessage(message);
   const intent = detectIntent(normalized);
-  const context = await loadFinanceContext(userId);
 
   switch (intent) {
     case 'greeting_tr':
@@ -438,8 +487,41 @@ async function buildReply(userId, message) {
   }
 }
 
+async function buildReply(userId, message) {
+  const context = await loadFinanceContext(userId);
+
+  if (isOpenAiConfigured()) {
+    try {
+      const financeSummary = buildFinanceSummary(context);
+      let pdfContext = '';
+
+      try {
+        const relevantChunks = await findRelevantStatementChunks(userId, message);
+        if (relevantChunks.length > 0) {
+          pdfContext = formatPdfContext(relevantChunks);
+        }
+      } catch (ragError) {
+        console.warn('[chatbot] RAG araması başarısız; PDF context olmadan devam ediliyor:', ragError.message);
+      }
+
+      return await generateFinanceAssistantReply({
+        userMessage: message,
+        financeSummary,
+        pdfContext,
+      });
+    } catch (error) {
+      console.warn('[chatbot] OpenAI yanıtı alınamadı; kural tabanlı moda dönülüyor:', error.message);
+    }
+  }
+
+  return buildRuleBasedReply(message, context);
+}
+
 module.exports = {
   buildReply,
+  buildFinanceSummary,
+  buildRuleBasedReply,
+  loadFinanceContext,
   detectIntent,
   normalizeMessage,
   parsePurchaseAmount,

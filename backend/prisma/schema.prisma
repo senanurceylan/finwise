@@ -66,6 +66,8 @@ model User {
   investments     UserInvestment[]
   paymentCards    PaymentCard[]
   budgets         Budget[]
+  statementDocuments StatementDocument[]
+  statementChunks StatementChunk[]
 
   @@map("users")
 }
@@ -168,4 +170,34 @@ model UserInvestment {
   @@index([symbol])
   @@index([cardId])
   @@map("user_investments")
+}
+
+model StatementDocument {
+  id         String           @id @default(cuid())
+  userId     String           @map("user_id")
+  fileName   String?          @map("file_name") @db.VarChar(255)
+  textLength Int              @map("text_length")
+  chunkCount Int              @default(0) @map("chunk_count")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chunks     StatementChunk[]
+
+  @@index([userId])
+  @@map("statement_documents")
+}
+
+model StatementChunk {
+  id         String            @id @default(cuid())
+  userId     String            @map("user_id")
+  documentId String            @map("document_id")
+  chunkIndex Int               @map("chunk_index")
+  content    String            @db.Text
+  embedding  Json
+  createdAt  DateTime          @default(now()) @map("created_at")
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   StatementDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([documentId])
+  @@map("statement_chunks")
 }

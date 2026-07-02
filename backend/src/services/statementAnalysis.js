@@ -225,4 +225,5 @@ async function analyzeStatementPdfBuffer(buffer) {
 
 module.exports = {
   analyzeStatementPdfBuffer,
+  extractTextFromPdfBuffer,
 };

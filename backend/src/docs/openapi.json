@@ -18,7 +18,7 @@
     { "name": "regular-payments", "description": "Düzenli ödemeler (`regular_payments` tablosu)" },
     { "name": "market", "description": "Canlı piyasa verileri (cache ile)" },
     { "name": "investments", "description": "Kullanıcının yatırım portföy kayıtları" },
-    { "name": "chatbot", "description": "Finans asistanı (kural tabanlı yanıtlar)" }
+    { "name": "chatbot", "description": "Finans asistanı (OpenAI + kural tabanlı yedek)" }
   ],
   "components": {
     "securitySchemes": {
@@ -984,7 +984,7 @@
       "post": {
         "tags": ["chatbot"],
         "summary": "Finans asistanına mesaj gönder",
-        "description": "JWT ile kimliği doğrulanmış kullanıcının harcama ve bütçe verilerine göre kural tabanlı yanıt üretir.",
+        "description": "JWT ile kimliği doğrulanmış kullanıcının harcama ve bütçe verilerinden finans özeti oluşturur. OPENAI_API_KEY tanımlıysa, varsa indekslenmiş banka ekstresi chunk'ları RAG ile aranır; OpenAI ile yanıt üretilir. Aksi halde veya OpenAI hatasında kural tabanlı yanıta döner.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
