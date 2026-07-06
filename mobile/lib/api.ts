@@ -1,9 +1,23 @@
 import { Platform } from 'react-native';
 
-const explicitBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
-const emulatorFallback = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
+function resolveApiBaseUrl(): string {
+  const explicitBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 
-export const API_BASE_URL = explicitBaseUrl || emulatorFallback;
+  // Expo Web (localhost:8081) tarayıcıda çalışır; backend aynı makinede localhost:5000 üzerinde.
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:5000';
+    }
+    if (explicitBaseUrl) return explicitBaseUrl;
+    return `http://${host}:5000`;
+  }
+
+  if (explicitBaseUrl) return explicitBaseUrl;
+  return Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export type ApiError = Error & {
   status?: number;
