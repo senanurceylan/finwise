@@ -2,7 +2,7 @@
  * API istekleri - token Authorization header'a eklenir.
  */
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'https://finwise-asxe.onrender.com';
 
 function getToken() {
   return localStorage.getItem('finwise_token');
