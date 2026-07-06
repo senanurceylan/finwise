@@ -18,8 +18,26 @@ const chatbotRoutes = require('./routes/chatbot');
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: true, credentials: true }));
+
+if (config.cors.allowedOrigins) {
+  app.use(
+    cors({
+      origin(origin, callback) {
+        if (!origin || config.cors.allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error('CORS policy: origin not allowed'));
+      },
+      credentials: true,
+    })
+  );
+} else {
+  app.use(cors({ origin: true, credentials: true }));
+}
+
 app.use(express.json({ limit: '10kb' }));
 
 const authLimiter = rateLimit({

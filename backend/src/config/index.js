@@ -4,8 +4,29 @@
  */
 require('dotenv').config();
 
+const LOCAL_DEV_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
+];
+
+function parseCorsAllowedOrigins() {
+  const frontendUrl = process.env.FRONTEND_URL?.trim();
+  if (!frontendUrl) return null;
+
+  const origins = new Set(LOCAL_DEV_ORIGINS);
+  for (const origin of frontendUrl.split(',').map((value) => value.trim()).filter(Boolean)) {
+    origins.add(origin);
+  }
+  return [...origins];
+}
+
 module.exports = {
   port: parseInt(process.env.PORT || '5000', 10),
+  cors: {
+    allowedOrigins: parseCorsAllowedOrigins(),
+  },
   jwt: {
     secret: process.env.JWT_SECRET || 'change-me-in-production',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
